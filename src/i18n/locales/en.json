@@ -1,0 +1,83 @@
+{
+  "app": {
+    "name": "CabinetPro Web",
+    "tagline": "Professional Cabinet Design & Cut Optimization"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "projects": "Projects",
+    "cabinets": "Cabinets",
+    "cutList": "Cut List",
+    "optimization": "Cut Optimization",
+    "drawings": "Technical Drawings",
+    "materials": "Materials",
+    "costing": "Costing",
+    "settings": "Settings",
+    "about": "About"
+  },
+  "cabinet": {
+    "base": "Base Cabinet",
+    "wall": "Wall Cabinet",
+    "tall": "Tall Cabinet",
+    "drawer": "Drawer"
+  },
+  "components": {
+    "floor": "Floor",
+    "back": "Back Panel",
+    "body": "Body",
+    "shelf": "Shelf",
+    "tie": "Tie",
+    "strip3mm": "3mm Strip",
+    "door": "Door",
+    "top": "Top",
+    "side": "Drawer Side",
+    "front": "Drawer Front"
+  },
+  "dimensions": {
+    "width": "Width",
+    "height": "Height",
+    "depth": "Depth",
+    "quantity": "Quantity",
+    "cm": "cm"
+  },
+  "actions": {
+    "create": "Create",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "duplicate": "Duplicate",
+    "export": "Export",
+    "import": "Import",
+    "generate": "Generate",
+    "calculate": "Calculate",
+    "optimize": "Optimize"
+  },
+  "status": {
+    "loading": "Loading...",
+    "saving": "Saving...",
+    "saved": "Saved",
+    "error": "Error",
+    "success": "Success"
+  },
+  "about": {
+    "title": "About CabinetPro Web",
+    "developer": "Developer",
+    "developerName": "Abbas Khoroushad",
+    "supportEmail": "Support Email",
+    "github": "GitHub",
+    "repository": "Project Repository",
+    "instagram": "Instagram",
+    "version": "Version"
+  },
+  "optimization": {
+    "title": "Sheet Cut Optimization",
+    "sheetSize": "Sheet Size",
+    "utilization": "Utilization",
+    "waste": "Waste",
+    "sheets": "Sheets",
+    "cuts": "Cuts",
+    "kerf": "Saw Kerf",
+    "margin": "Margin"
+  }
+}
