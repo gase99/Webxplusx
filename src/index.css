@@ -1,0 +1,132 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Vazirmatn", "IRANSans", Tahoma, "Segoe UI", Arial, sans-serif;
+}
+
+body {
+  @apply bg-slate-200 text-slate-800 antialiased;
+  font-family: var(--font-sans);
+}
+
+/* حذف اسپینر ورودی‌های عددی (در صورت استفاده از type=number) */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+input[type="checkbox"] {
+  cursor: pointer;
+}
+
+/* اسکرول‌بار باریک‌تر برای ناحیهٔ جدول */
+.table-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.table-scroll::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 8px;
+  border: 2px solid #e2e8f0;
+}
+.table-scroll::-webkit-scrollbar-track {
+  background: #e2e8f0;
+}
+
+/* ------------------------------------------------------------------ */
+/*  فاز ۴ — چاپ (نقشهٔ برش و لیبل‌ها)                                   */
+/*  سند چاپی داخل یک Portal روی body رندر می‌شود (.print-portal) و روی  */
+/*  صفحه مخفی است. هنگام پرینتِ هدایت‌شده (data-print-mode روی html)    */
+/*  کل اپ مخفی و فقط همان سند چاپ می‌شود. پرینت دستی (Ctrl+P) بدون      */
+/*  حالت خاص، مثل قبل خود صفحه را چاپ می‌کند.                          */
+/* ------------------------------------------------------------------ */
+
+.print-portal {
+  display: none;
+}
+
+/* شبکهٔ لیبل‌ها: هر صفحه ۳ ستون × ۵ ردیف روی A4 */
+.label-sheet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8mm;
+}
+.label-page {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(5, 52mm);
+  gap: 3mm;
+  width: min(210mm, 100%);
+  padding: 8mm;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(15 23 42 / 0.12);
+}
+
+@media print {
+  /* رنگ‌ها در چاپ دقیقاً همان‌طور که روی صفحه‌اند بیایند
+     (قرمز فارسی، سبزآبی نوار، کهربایی شیار، پس‌زمینهٔ قطعات) */
+  .print-portal,
+  .print-portal * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  html[data-print-mode] #root {
+    display: none !important;
+  }
+  html[data-print-mode] .print-portal {
+    display: block !important;
+  }
+  html[data-print-mode] body {
+    background: #fff !important;
+  }
+
+  /* صفحه‌بندی اسناد چاپی با صفحات نام‌دار (در مرورگرهای کرومیوم) */
+  .print-doc-map {
+    page: a4-landscape;
+  }
+  .print-doc-labels {
+    page: a4-portrait;
+  }
+  @page a4-landscape {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+  @page a4-portrait {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+  @page {
+    margin: 10mm;
+  }
+
+  /* هر ورق خام روی نقشه یک‌تکه بماند و وسط صفحه نشکند */
+  .print-portal .print-sheet {
+    break-inside: avoid;
+    box-shadow: none !important;
+  }
+  /* در سند چاپی نیازی به اسکرول افقی نقشه نیست */
+  .print-portal .table-scroll {
+    overflow: visible !important;
+  }
+
+  /* صفحات لیبل دقیقاً روی مرز صفحهٔ A4 تمام شوند */
+  .print-portal .label-sheet {
+    gap: 0;
+  }
+  .print-portal .label-page {
+    width: auto;
+    padding: 0;
+    box-shadow: none;
+    break-after: page;
+  }
+  .print-portal .label-page:last-child {
+    break-after: auto;
+  }
+}
