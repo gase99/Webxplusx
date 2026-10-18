@@ -1,0 +1,83 @@
+{
+  "app": {
+    "name": "CabinetPro Web",
+    "tagline": "طراحی و بهینه‌سازی برش کابینت"
+  },
+  "nav": {
+    "dashboard": "داشبورد",
+    "projects": "پروژه‌ها",
+    "cabinets": "کابینت‌ها",
+    "cutList": "لیست برش",
+    "optimization": "بهینه‌سازی برش",
+    "drawings": "نقشه‌ها",
+    "materials": "مصالح",
+    "costing": "هزینه‌ها",
+    "settings": "تنظیمات",
+    "about": "درباره برنامه"
+  },
+  "cabinet": {
+    "base": "کابینت زمینی",
+    "wall": "کابینت هوایی",
+    "tall": "کابینت بلند",
+    "drawer": "کشو"
+  },
+  "components": {
+    "floor": "کف",
+    "back": "بدنه",
+    "body": "بدنه",
+    "shelf": "طبقه",
+    "tie": "قید",
+    "strip3mm": "نوار 3 میل",
+    "door": "درب",
+    "top": "تاق",
+    "side": "بدنه کشو",
+    "front": "جلو کشو"
+  },
+  "dimensions": {
+    "width": "عرض",
+    "height": "ارتفاع",
+    "depth": "عمق",
+    "quantity": "تعداد",
+    "cm": "سانتی‌متر"
+  },
+  "actions": {
+    "create": "ایجاد",
+    "edit": "ویرایش",
+    "delete": "حذف",
+    "save": "ذخیره",
+    "cancel": "انصراف",
+    "duplicate": "کپی",
+    "export": "خروجی",
+    "import": "ورود",
+    "generate": "تولید",
+    "calculate": "محاسبه",
+    "optimize": "بهینه‌سازی"
+  },
+  "status": {
+    "loading": "در حال بارگذاری...",
+    "saving": "در حال ذخیره...",
+    "saved": "ذخیره شد",
+    "error": "خطا",
+    "success": "موفق"
+  },
+  "about": {
+    "title": "درباره CabinetPro Web",
+    "developer": "توسعه‌دهنده",
+    "developerName": "عباس کروشاد",
+    "supportEmail": "ایمیل پشتیبانی",
+    "github": "گیت‌هاب",
+    "repository": "مخزن پروژه",
+    "instagram": "اینستاگرام",
+    "version": "نسخه"
+  },
+  "optimization": {
+    "title": "بهینه‌سازی برش ورق",
+    "sheetSize": "اندازه ورق",
+    "utilization": "بهره‌وری",
+    "waste": "ضایعات",
+    "sheets": "ورق‌ها",
+    "cuts": "برش‌ها",
+    "kerf": "ضخامت تیغه",
+    "margin": "حاشیه"
+  }
+}
