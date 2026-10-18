@@ -1,7 +1,7 @@
 # A-Cut 2Dpro — جدول ورود اطلاعات قطعات
 
-🌐 **نسخهٔ آنلاین:** https://gase99.github.io/acut-2dpro/  
-(با هر پوش روی شاخهٔ `main` مخزن acut-2dpro، از طریق `.github/workflows/deploy.yml` به‌صورت خودکار روی GitHub Pages منتشر می‌شود.)
+🌐 **نسخهٔ آنلاین:** https://gase99.github.io/Webxplusx/  
+(با هر پوش روی شاخهٔ `main` مخزن `gase99/Webxplusx`، از طریق `.github/workflows/deploy.yml` به‌صورت خودکار روی GitHub Pages منتشر می‌شود.)
 
 نرم‌افزار بهینه‌سازی برش دوبعدی ورق (در حال ساخت).
 این بخش: **جدول ورود اطلاعات (Data Entry Table)** با React + TypeScript + Tailwind CSS، کاملاً راست‌چین و فارسی.
