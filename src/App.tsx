@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import DataEntryTable from './components/DataEntryTable';
+import InstallButton from './components/InstallButton';
 import LayoutPanel from './components/LayoutPanel';
 import ProjectManager from './components/ProjectManager';
 import PartPreview from './components/PartPreview';
@@ -24,12 +25,13 @@ import {
   type LayoutState,
   type Project,
 } from './types/project';
+import { loadWorkspaceDraft, saveWorkspaceDraft } from './storage/projects';
 import {
-  loadProjects,
-  loadWorkspaceDraft,
-  saveProjects,
-  saveWorkspaceDraft,
-} from './storage/projects';
+  deleteProject,
+  listProjects,
+  migrateLegacyProjects,
+  putProject,
+} from './db/database';
 
 const faNumber = new Intl.NumberFormat('fa-IR');
 const faDecimal = new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 2 });
@@ -44,8 +46,9 @@ export default function App() {
   const [settings, setSettings] = useState<LayoutSettings>(initialWorkspace.settings);
   const [layoutState, setLayoutState] = useState<LayoutState | null>(initialWorkspace.layoutState);
 
-  // --- فاز ۵: مدیریت پروژه‌ها ---
-  const [projects, setProjects] = useState<Project[]>(loadProjects);
+  // --- فاز ۵/۶: مدیریت پروژه‌ها — ذخیره در IndexedDB (Dexie) ---
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [dbReady, setDbReady] = useState(false);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(initialWorkspace.projectId);
   const [currentProjectName, setCurrentProjectName] = useState(initialWorkspace.projectName);
   const [baselineSignature, setBaselineSignature] = useState(initialWorkspace.baselineSignature);
@@ -57,10 +60,32 @@ export default function App() {
   );
   const isDirty = workspaceSignature !== baselineSignature;
 
-  // ذخیرهٔ فهرست پروژه‌ها و پیش‌نویس خودکار فضای کاری
+  // بارگذاری دیتابیس + مهاجرت داده‌های قدیمی localStorage (فاز ۶)
   useEffect(() => {
-    saveProjects(projects);
-  }, [projects]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const migratedCount = await migrateLegacyProjects();
+        const all = await listProjects();
+        if (cancelled) return;
+        setProjects(all);
+        if (migratedCount > 0) {
+          setSaveNotice(
+            `${migratedCount.toLocaleString('fa-IR')} پروژهٔ قدیمی به دیتابیس مرورگر منتقل شد ✓`,
+          );
+        }
+      } catch {
+        // IndexedDB در دسترس نیست (حالت خصوصی و ...): با فهرست خالی کار می‌کنیم
+      } finally {
+        if (!cancelled) setDbReady(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // پیش‌نویس خودکار فضای کاری (فایل موقت — همچنان در localStorage)
   useEffect(() => {
     saveWorkspaceDraft({
       projectId: currentProjectId,
@@ -118,7 +143,7 @@ export default function App() {
       `پروژهٔ فعلی («${currentProjectName}») تغییرات ذخیره‌نشده دارد. با ${action} این تغییرات از دست می‌رود. ادامه می‌دهید؟`,
     );
 
-  const handleSaveProject = (saveAs = false) => {
+  const handleSaveProject = async (saveAs = false) => {
     const now = Date.now();
     let id = currentProjectId;
     let name = currentProjectName;
@@ -150,8 +175,11 @@ export default function App() {
     const next = projects.some((p) => p.id === id)
       ? projects.map((p) => (p.id === id ? project : p))
       : [project, ...projects];
-    if (!saveProjects(next)) {
-      window.alert('ذخیره انجام نشد: فضای ذخیره‌سازی مرورگر پر است. چند پروژهٔ قدیمی را حذف کنید.');
+    try {
+      // ذخیرهٔ ناهمگام در IndexedDB
+      await putProject(project);
+    } catch {
+      window.alert('ذخیره انجام نشد: دیتابیس مرورگر در دسترس نیست یا پر است. چند پروژهٔ قدیمی را حذف کنید.');
       return;
     }
     setProjects(next);
@@ -167,10 +195,15 @@ export default function App() {
     setSaveNotice(`پروژهٔ «${project.name}» باز شد`);
   };
 
-  const handleDeleteProject = (project: Project) => {
+  const handleDeleteProject = async (project: Project) => {
     if (!window.confirm(`پروژهٔ «${project.name}» حذف شود؟ این عمل قابل بازگشت نیست.`)) return;
+    try {
+      await deleteProject(project.id);
+    } catch {
+      window.alert('حذف انجام نشد: دیتابیس مرورگر در دسترس نیست.');
+      return;
+    }
     const next = projects.filter((p) => p.id !== project.id);
-    saveProjects(next);
     setProjects(next);
     if (project.id === currentProjectId) {
       // محتوای فعلی می‌ماند ولی دیگر نسخهٔ ذخیره‌شده ندارد ⇒ ذخیره‌نشده محسوب می‌شود
@@ -238,6 +271,20 @@ export default function App() {
     };
   }, [rows]);
 
+  // تا دیتابیس بارگذاری و مهاجرت انجام شود، رابط نمایش داده نمی‌شود
+  if (!dbReady) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-slate-100">
+        <div className="text-center">
+          <div className="mx-auto mb-3 h-12 w-12 animate-spin rounded-full border-4 border-sky-600 border-t-transparent" />
+          <p className="text-sm font-semibold text-slate-600">
+            در حال آماده‌سازی دیتابیس پروژه‌ها…
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen">
       {/* سربرگ نرم‌افزار: لوگو و سازنده (راست) — مدیریت پروژه‌ها (چپ) */}
@@ -287,6 +334,7 @@ export default function App() {
 
           {/* سمت چپ: وضعیت پروژهٔ جاری + مدیریت پروژه‌ها */}
           <div className="ms-auto flex items-center gap-3">
+            <InstallButton />
             <div className="hidden leading-tight md:block">
               <p className="max-w-[190px] truncate text-xs font-extrabold" title={currentProjectName}>
                 {currentProjectName}
@@ -455,7 +503,7 @@ export default function App() {
           <a href="https://t.me/Webxplusx" target="_blank" rel="noreferrer" className="font-semibold text-slate-600 transition hover:text-sky-600">تلگرام</a>{' '}
           <span dir="ltr">@Webxplusx</span>
           <br />
-          پروژه‌ها روی همین دستگاه ذخیره می‌شوند و فضای کاری فعلی نیز به‌صورت خودکار نگه داشته می‌شود.
+          پروژه‌ها در دیتابیس مرورگر (IndexedDB) ذخیره می‌شوند، فضای کاری فعلی به‌صورت خودکار نگه داشته می‌شود و برنامه آفلاین نیز قابل نصب است.
         </footer>
       </main>
     </div>
