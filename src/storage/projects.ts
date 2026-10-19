@@ -1,12 +1,14 @@
 /**
- * A-Cut 2Dpro — لایهٔ ذخیره‌سازی پروژه‌ها روی localStorage
- * ---------------------------------------------------------
- * - فهرست پروژه‌های ذخیره‌شده: کلید `acut_projects` (آرایه‌ای از Project)
- * - پیش‌نویس فضای کاری فعلی: کلید `acut_draft` — به‌صورت خودکار ذخیره می‌شود
- *   تا رفرش صفحه کار در حال انجام را از بین نبرد (مستقل از «ذخیرهٔ پروژه» که
- *   عمل صریح کاربر است و مبنای تشخیص تغییرات ذخیره‌نشده قرار می‌گیرد).
- * - مهاجرت: اگر از فازهای قبلی فقط قطعات ذخیره شده باشد (کلید قدیمی)، همان
- *   قطعات به‌عنوان پیش‌نویس اولیه خوانده می‌شوند.
+ * A-Cut 2Dpro — پیش‌نویس فضای کاری روی localStorage
+ * --------------------------------------------------------
+ * - فهرست پروژه‌ها از این فایل به دیتابیس IndexedDB منتقل شده
+ *   است (src/db/database.ts — با Dexie و توابع CRUD ناهمگام).
+ * - پیش‌نویس فضای کاری فعلی: کلید `acut_draft` — به‌صورت خودکار
+ *   ذخیره می‌شود تا رفرش صفحه کار در حال انجام را از بین نبرد
+ *   (مستقل از «ذخیرهٔ پروژه» که عمل صریح کاربر است و مبنای
+ *   تشخیص تغییرات ذخیره‌نشده قرار می‌گیرد).
+ * - مهاجرت: اگر از فازهای قبلی فقط قطعات ذخیره شده باشد (کلید
+ *   قدیمی)، همان قطعات به‌عنوان پیش‌نویس اولیه خوانده می‌شوند.
  */
 import { createSampleParts, migratePart, type CutPart } from '../types/part';
 import {
@@ -15,10 +17,8 @@ import {
   computeWorkspaceSignature,
   type LayoutSettings,
   type LayoutState,
-  type Project,
 } from '../types/project';
 
-export const PROJECTS_STORAGE_KEY = 'acut_projects';
 export const DRAFT_STORAGE_KEY = 'acut_draft';
 const LEGACY_PARTS_KEY = 'a-cut-2dpro:parts:v1';
 
@@ -38,50 +38,6 @@ function safeParse<T>(raw: string | null): T | null {
     return JSON.parse(raw) as T;
   } catch {
     return null;
-  }
-}
-
-function isProjectLike(value: unknown): value is Project {
-  if (typeof value !== 'object' || value === null) return false;
-  const p = value as Partial<Project>;
-  return (
-    typeof p.id === 'string' &&
-    typeof p.name === 'string' &&
-    Array.isArray(p.parts) &&
-    typeof p.settings === 'object' &&
-    p.settings !== null
-  );
-}
-
-/** خواندن فهرست پروژه‌های ذخیره‌شده (آیتم‌های خراب نادیده گرفته می‌شوند) */
-export function loadProjects(): Project[] {
-  try {
-    const parsed = safeParse<unknown[]>(localStorage.getItem(PROJECTS_STORAGE_KEY));
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isProjectLike).map((p) => {
-      const migratedParts = (p.parts as unknown[]).map((raw) => migratePart(raw));
-      const migratedLayoutParts = (p.lastLayoutParts as unknown[] | undefined)?.map((raw) => migratePart(raw));
-      return {
-        ...p,
-        parts: migratedParts,
-        lastLayoutParts: migratedLayoutParts as typeof p.lastLayoutParts,
-        settings: { ...DEFAULT_LAYOUT_SETTINGS, ...p.settings },
-        createdAt: typeof p.createdAt === 'number' ? p.createdAt : Date.now(),
-        updatedAt: typeof p.updatedAt === 'number' ? p.updatedAt : Date.now(),
-      } as Project;
-    });
-  } catch {
-    return [];
-  }
-}
-
-/** ذخیرهٔ فهرست پروژه‌ها؛ در صورت پرشدن حافظه false برمی‌گرداند */
-export function saveProjects(projects: Project[]): boolean {
-  try {
-    localStorage.setItem(PROJECTS_STORAGE_KEY, JSON.stringify(projects));
-    return true;
-  } catch {
-    return false;
   }
 }
 
