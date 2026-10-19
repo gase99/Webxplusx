@@ -8,7 +8,7 @@
  * - مهاجرت: اگر از فازهای قبلی فقط قطعات ذخیره شده باشد (کلید قدیمی)، همان
  *   قطعات به‌عنوان پیش‌نویس اولیه خوانده می‌شوند.
  */
-import { createSampleParts, type CutPart } from '../types/part';
+import { createSampleParts, migratePart, type CutPart } from '../types/part';
 import {
   DEFAULT_LAYOUT_SETTINGS,
   UNTITLED_PROJECT_NAME,
@@ -58,12 +58,18 @@ export function loadProjects(): Project[] {
   try {
     const parsed = safeParse<unknown[]>(localStorage.getItem(PROJECTS_STORAGE_KEY));
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isProjectLike).map((p) => ({
-      ...p,
-      settings: { ...DEFAULT_LAYOUT_SETTINGS, ...p.settings },
-      createdAt: typeof p.createdAt === 'number' ? p.createdAt : Date.now(),
-      updatedAt: typeof p.updatedAt === 'number' ? p.updatedAt : Date.now(),
-    }));
+    return parsed.filter(isProjectLike).map((p) => {
+      const migratedParts = (p.parts as unknown[]).map((raw) => migratePart(raw));
+      const migratedLayoutParts = (p.lastLayoutParts as unknown[] | undefined)?.map((raw) => migratePart(raw));
+      return {
+        ...p,
+        parts: migratedParts,
+        lastLayoutParts: migratedLayoutParts as typeof p.lastLayoutParts,
+        settings: { ...DEFAULT_LAYOUT_SETTINGS, ...p.settings },
+        createdAt: typeof p.createdAt === 'number' ? p.createdAt : Date.now(),
+        updatedAt: typeof p.updatedAt === 'number' ? p.updatedAt : Date.now(),
+      } as Project;
+    });
   } catch {
     return [];
   }
@@ -102,15 +108,20 @@ export function loadWorkspaceDraft(): WorkspaceDraft {
     if (draft && Array.isArray(draft.parts) && draft.parts.length > 0 && draft.settings) {
       const settings = { ...DEFAULT_LAYOUT_SETTINGS, ...draft.settings };
       const projectName = draft.projectName || UNTITLED_PROJECT_NAME;
+      const migrated = (draft.parts as unknown[]).map((raw) => migratePart(raw));
+      const migratedLayout = draft.layoutState ? {
+        ...draft.layoutState,
+        partsSnapshot: (draft.layoutState.partsSnapshot as unknown[]).map((raw) => migratePart(raw)),
+      } : null;
       return {
         projectId: draft.projectId ?? null,
         projectName,
-        parts: draft.parts,
+        parts: migrated,
         settings,
-        layoutState: draft.layoutState ?? null,
+        layoutState: migratedLayout as typeof draft.layoutState,
         baselineSignature:
           draft.baselineSignature ??
-          computeWorkspaceSignature(draft.parts, settings, projectName),
+          computeWorkspaceSignature(migrated, settings, projectName),
       };
     }
 

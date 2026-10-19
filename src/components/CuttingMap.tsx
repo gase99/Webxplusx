@@ -32,7 +32,9 @@ const faDecimal = new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 1 });
 const COLOR = {
   sheetBorder: '#1e293b',
   wasteFill: '#eef2f7',
-  wasteLine: '#dde4ee',
+  wasteFill2: '#f1f5f9',
+  wasteLine: '#cbd5e1',
+  wasteLine2: '#94a3b8',
   band: '#0d9488', // teal-600
   farsi: '#dc2626', // red-600 — روی همهٔ پس‌زمینه‌ها خوانا بماند
   farsiFill: '#fecdd3',
@@ -391,7 +393,7 @@ export default function CuttingMap({ sheets, stock, parts, forPrint = false }: C
             <GrooveIcon active className="h-4 w-4" /> شیار: خط‌چین کهربایی داخل قطعه
           </li>
           <li className="flex items-center gap-1">
-            <span className="inline-block h-3.5 w-5 rounded-sm bg-slate-200 ring-1 ring-slate-300" /> پرت / باقی‌ماندهٔ ورق
+            <span className="inline-block h-3.5 w-5 rounded-sm bg-slate-200 ring-1 ring-slate-300" aria-hidden /> <span className="font-bold">هاشور ضایعات</span> / باقی‌ماندهٔ ورق
           </li>
         </ul>
 
@@ -464,6 +466,7 @@ export default function CuttingMap({ sheets, stock, parts, forPrint = false }: C
                   aria-label={`نقشهٔ برش صفحهٔ ${sheet.sheetIndex + 1}`}
                 >
                   <defs>
+                    {/* هاشور ضایعات — لایهٔ اول: هاشور مورب ۴۵° */}
                     <pattern
                       id={`${patternId}-waste`}
                       patternUnits="userSpaceOnUse"
@@ -472,27 +475,24 @@ export default function CuttingMap({ sheets, stock, parts, forPrint = false }: C
                       patternTransform="rotate(45)"
                     >
                       <rect width={20 * scale} height={20 * scale} fill={COLOR.wasteFill} />
-                      <line
-                        x1={0}
-                        y1={0}
-                        x2={0}
-                        y2={20 * scale}
-                        stroke={COLOR.wasteLine}
-                        strokeWidth={5 * scale}
-                      />
+                      <line x1={0} y1={0} x2={0} y2={20 * scale} stroke={COLOR.wasteLine} strokeWidth={5 * scale} />
+                    </pattern>
+                    {/* هاشور ضایعات — لایهٔ دوم: هاشور متقاطع برای وضوح بیشتر */}
+                    <pattern
+                      id={`${patternId}-waste2`}
+                      patternUnits="userSpaceOnUse"
+                      width={24 * scale}
+                      height={24 * scale}
+                      patternTransform="rotate(-45)"
+                    >
+                      <rect width={24 * scale} height={24 * scale} fill="transparent" />
+                      <line x1={0} y1={0} x2={0} y2={24 * scale} stroke={COLOR.wasteLine2} strokeWidth={2.2 * scale} strokeDasharray={`${3 * scale} ${4 * scale}`} opacity="0.6" />
                     </pattern>
                   </defs>
 
-                  {/* بدنهٔ ورق خام: پس‌زمینه‌اش همان پرت/باقی‌مانده است */}
-                  <rect
-                    x={0}
-                    y={0}
-                    width={stock.length}
-                    height={stock.width}
-                    fill={`url(#${patternId}-waste)`}
-                    stroke={COLOR.sheetBorder}
-                    strokeWidth={2.4 * scale}
-                  />
+                  {/* بدنهٔ ورق خام: پس‌زمینه‌اش همان پرت/باقی‌مانده است — هاشور ضایعات دو لایه */}
+                  <rect x={0} y={0} width={stock.length} height={stock.width} fill={`url(#${patternId}-waste)`} stroke={COLOR.sheetBorder} strokeWidth={2.4 * scale} />
+                  <rect x={0} y={0} width={stock.length} height={stock.width} fill={`url(#${patternId}-waste2)`} stroke="none" opacity="0.9" />
 
                   {sheet.placements.map((placement) => (
                     <PlacedPart

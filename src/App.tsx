@@ -205,23 +205,23 @@ export default function App() {
     const totalQty = valid.reduce((sum, p) => sum + p.qty, 0);
     const totalAreaM2 =
       valid.reduce((sum, p) => sum + p.length * p.width * p.qty, 0) / 1_000_000;
-    // متراژ تقریبی: هر تیکِ «طول» یعنی دو لبهٔ مقابل هم و هر تیکِ «عرض» یعنی دو لبهٔ مقابل هم
+    // متراژ تقریبی: ورودی عددی ۰/۱/۲ — تعداد لبه‌های دارای عملیات × طول همان محور
     const bandMeters =
       valid.reduce(
         (sum, p) =>
           sum +
-          p.qty * ((p.bandLength ? 2 * p.length : 0) + (p.bandWidth ? 2 * p.width : 0)),
+          p.qty * (Number(p.bandLength) * p.length + Number(p.bandWidth) * p.width),
         0,
       ) / 1000;
     const grooveMeters =
       valid.reduce(
         (sum, p) =>
           sum +
-          p.qty * ((p.grooveLength ? 2 * p.length : 0) + (p.grooveWidth ? 2 * p.width : 0)),
+          p.qty * (Number(p.grooveLength) * p.length + Number(p.grooveWidth) * p.width),
         0,
       ) / 1000;
     const farsiEdges = valid.reduce(
-      (sum, p) => sum + p.qty * ((p.farsiLength ? 2 : 0) + (p.farsiWidth ? 2 : 0)),
+      (sum, p) => sum + p.qty * (Number(p.farsiLength) + Number(p.farsiWidth)),
       0,
     );
     const incomplete = rows.filter(

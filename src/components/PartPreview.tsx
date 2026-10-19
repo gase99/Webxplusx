@@ -97,36 +97,48 @@ export default function PartPreview({ part }: { part: CutPart | null }) {
       {/* بدنهٔ قطعه */}
       <rect x={x} y={y} width={rw} height={rh} rx="2" fill={COLOR.fill} stroke={COLOR.edge} strokeWidth="1.4" />
 
-      {/* شیار: خط‌چین موازی لبه، داخل قطعه */}
-      {part.grooveLength && (
+      {/* شیار: خط‌چین موازی لبه، داخل قطعه — ورودی عددی ۰/۱/۲ */}
+      {Number(part.grooveLength) >= 2 && (
         <>
           <line x1={x + 3} y1={y + grooveInset} x2={x + rw - 3} y2={y + grooveInset} stroke={COLOR.groove} strokeWidth="2" strokeDasharray="7 4" />
           <line x1={x + 3} y1={y + rh - grooveInset} x2={x + rw - 3} y2={y + rh - grooveInset} stroke={COLOR.groove} strokeWidth="2" strokeDasharray="7 4" />
         </>
       )}
-      {part.grooveWidth && (
+      {Number(part.grooveLength) === 1 && (
+        <line x1={x + 3} y1={y + grooveInset} x2={x + rw - 3} y2={y + grooveInset} stroke={COLOR.groove} strokeWidth="2" strokeDasharray="7 4" />
+      )}
+      {Number(part.grooveWidth) >= 2 && (
         <>
           <line x1={x + grooveInset} y1={y + 3} x2={x + grooveInset} y2={y + rh - 3} stroke={COLOR.groove} strokeWidth="2" strokeDasharray="7 4" />
           <line x1={x + rw - grooveInset} y1={y + 3} x2={x + rw - grooveInset} y2={y + rh - 3} stroke={COLOR.groove} strokeWidth="2" strokeDasharray="7 4" />
         </>
       )}
+      {Number(part.grooveWidth) === 1 && (
+        <line x1={x + grooveInset} y1={y + 3} x2={x + grooveInset} y2={y + rh - 3} stroke={COLOR.groove} strokeWidth="2" strokeDasharray="7 4" />
+      )}
 
-      {/* نوار: خط ضخیم روی لبه */}
-      {part.bandLength && (
+      {/* نوار: خط ضخیم روی لبه — ۰/۱/۲ */}
+      {Number(part.bandLength) >= 2 && (
         <>
           <line x1={x} y1={y} x2={x + rw} y2={y} stroke={COLOR.band} strokeWidth="5" strokeLinecap="square" />
           <line x1={x} y1={y + rh} x2={x + rw} y2={y + rh} stroke={COLOR.band} strokeWidth="5" strokeLinecap="square" />
         </>
       )}
-      {part.bandWidth && (
+      {Number(part.bandLength) === 1 && (
+        <line x1={x} y1={y} x2={x + rw} y2={y} stroke={COLOR.band} strokeWidth="5" strokeLinecap="square" />
+      )}
+      {Number(part.bandWidth) >= 2 && (
         <>
           <line x1={x} y1={y} x2={x} y2={y + rh} stroke={COLOR.band} strokeWidth="5" strokeLinecap="square" />
           <line x1={x + rw} y1={y} x2={x + rw} y2={y + rh} stroke={COLOR.band} strokeWidth="5" strokeLinecap="square" />
         </>
       )}
+      {Number(part.bandWidth) === 1 && (
+        <line x1={x} y1={y} x2={x} y2={y + rh} stroke={COLOR.band} strokeWidth="5" strokeLinecap="square" />
+      )}
 
-      {/* فارسی: خط قرمز + هاشور + برچسب ۴۵° (قرارداد رندر فاز ۳) */}
-      {part.farsiLength && (
+      {/* فارسی: خط قرمز + هاشور + برچسب ۴۵° (قرارداد رندر فاز ۳) — ۰/۱/۲ */}
+      {Number(part.farsiLength) >= 2 && (
         <>
           <line x1={x} y1={y} x2={x + rw} y2={y} stroke={COLOR.farsi} strokeWidth="2.4" />
           <line x1={x} y1={y + rh} x2={x + rw} y2={y + rh} stroke={COLOR.farsi} strokeWidth="2.4" />
@@ -140,7 +152,25 @@ export default function PartPreview({ part }: { part: CutPart | null }) {
           </text>
         </>
       )}
-      {part.farsiWidth && (
+      {Number(part.farsiLength) === 1 && (
+        <>
+          <line x1={x} y1={y} x2={x + rw} y2={y} stroke={COLOR.farsi} strokeWidth="2.4" />
+          {hatch('top')}
+          <text x={x + rw / 2} y={y - 12} textAnchor="middle" fontSize="12" fontWeight="800" fill={COLOR.farsi}>
+            ۴۵°
+          </text>
+        </>
+      )}
+      {Number(part.farsiWidth) === 1 && (
+        <>
+          <line x1={x} y1={y} x2={x} y2={y + rh} stroke={COLOR.farsi} strokeWidth="2.4" />
+          {hatch('left')}
+          <text x={x - 14} y={y + rh / 2} textAnchor="middle" dominantBaseline="middle" fontSize="12" fontWeight="800" fill={COLOR.farsi} transform={`rotate(-90 ${x - 14} ${y + rh / 2})`}>
+            ۴۵°
+          </text>
+        </>
+      )}
+      {Number(part.farsiWidth) >= 2 && (
         <>
           <line x1={x} y1={y} x2={x} y2={y + rh} stroke={COLOR.farsi} strokeWidth="2.4" />
           <line x1={x + rw} y1={y} x2={x + rw} y2={y + rh} stroke={COLOR.farsi} strokeWidth="2.4" />
@@ -156,12 +186,12 @@ export default function PartPreview({ part }: { part: CutPart | null }) {
       )}
 
       {/* برچسب ابعاد */}
-      {!part.farsiLength && (
+      {!Number(part.farsiLength) && (
         <text x={x + rw / 2} y={y + rh + 22} textAnchor="middle" fontSize="12" fill={COLOR.text} style={{ direction: 'ltr' }}>
           {part.length > 0 ? `${part.length} mm` : 'طول؟'}
         </text>
       )}
-      {!part.farsiWidth && (
+      {!Number(part.farsiWidth) && (
         <text
           x={x - 12}
           y={y + rh / 2}

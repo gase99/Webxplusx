@@ -10,6 +10,7 @@ import {
 import { downloadDxf } from '../exportDxf';
 import CuttingMap from './CuttingMap';
 import LabelSheet from './LabelSheet';
+import ControlSheet from './ControlSheet';
 
 const faNumber = new Intl.NumberFormat('fa-IR');
 const faDecimal = new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 2 });
@@ -413,9 +414,14 @@ export default function LayoutPanel({
             </div>
           )}
 
-          {/* فاز ۳: نقشهٔ برش SVG روی همین خروجی placements/sheets */}
+          {/* فاز ۳: نقشهٔ برش SVG روی همین خروجی placements/sheets — هاشور ضایعات = هاشور مورب پرت */}
           {result.sheets.length > 0 && (
             <CuttingMap sheets={result.sheets} stock={result.stock} parts={resultParts} />
+          )}
+
+          {/* برگه کنترل کارگاهی (قابل چاپ) — ورودی ۰/۱/۲ و هاشور ضایعات */}
+          {result.sheets.length > 0 && (
+            <ControlSheet result={result} parts={resultParts} />
           )}
 
           {/* پیش‌نمایش روی‌صفحهٔ لیبل‌ها (همان چیزی که چاپ می‌شود) */}

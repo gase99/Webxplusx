@@ -9,8 +9,10 @@
  *
  * نام لبه‌ها نسبت به دستگاه مختصات چیدمان است: مبدأ (0,0) گوشهٔ ورق،
  * لبهٔ «top» همان لبه‌ای است که y آن کمینه است و «bottom» لبهٔ با y بیشینه.
+ *
+ * نسخه نهایی: مقادیر ۰/۱/۲ — ۰ بدون، ۱ یک لبه، ۲ هر دو لبه
  */
-import type { CutPart } from './types/part';
+import type { CutPart, EdgeCount } from './types/part';
 
 export type PartSide = 'top' | 'bottom' | 'left' | 'right';
 
@@ -31,21 +33,31 @@ export interface PartEdgeSides {
 }
 
 /**
- * لبه‌های متناظر یک جفت فلگ (طول/عرض) روی قطعهٔ رسم‌شده.
+ * لبه‌های متناظر یک جفت ورودی عددی (۰/۱/۲) روی قطعهٔ رسم‌شده.
  * بدون چرخش: طول افقی است ⇒ لبه‌های طول = بالا/پایین، عرض = چپ/راست.
  * با چرخش ۹۰ درجه برعکس می‌شود.
+ * برای مقدار ۱: فقط یک لبه (بالا برای طول، چپ برای عرض) رسم می‌شود.
+ * برای مقدار ۲: هر دو لبهٔ مقابل.
  */
 export function sidesForFlags(
-  lengthFlag: boolean,
-  widthFlag: boolean,
+  lengthCount: EdgeCount | number | boolean,
+  widthCount: EdgeCount | number | boolean,
   isRotated: boolean,
 ): PartSide[] {
   const sides: PartSide[] = [];
-  if (lengthFlag) {
+  // نرمال‌سازی: boolean قدیمی و عدد
+  const lc = typeof lengthCount === 'boolean' ? (lengthCount ? 2 : 0) : Number(lengthCount) || 0;
+  const wc = typeof widthCount === 'boolean' ? (widthCount ? 2 : 0) : Number(widthCount) || 0;
+
+  if (lc >= 2) {
     sides.push(...(isRotated ? (['left', 'right'] as PartSide[]) : (['top', 'bottom'] as PartSide[])));
+  } else if (lc === 1) {
+    sides.push(isRotated ? 'left' : 'top');
   }
-  if (widthFlag) {
+  if (wc >= 2) {
     sides.push(...(isRotated ? (['top', 'bottom'] as PartSide[]) : (['left', 'right'] as PartSide[])));
+  } else if (wc === 1) {
+    sides.push(isRotated ? 'top' : 'left');
   }
   return sides;
 }
