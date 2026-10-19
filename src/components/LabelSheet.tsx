@@ -31,11 +31,13 @@ interface LabelEntry {
   source?: CutPart;
 }
 
-/** خلاصهٔ متنی یک جفت فلگ طول/عرض: «طول و عرض» / «فقط طول» / «فقط عرض» / «ندارد» */
-function describeFlags(lengthFlag: boolean, widthFlag: boolean): string {
-  if (lengthFlag && widthFlag) return 'طول و عرض';
-  if (lengthFlag) return 'فقط طول';
-  if (widthFlag) return 'فقط عرض';
+/** خلاصهٔ متنی یک جفت ورودی عددی ۰/۱/۲: «طول و عرض» / «فقط طول» / «فقط عرض» / «ندارد» + تعداد لبه */
+function describeFlags(lengthCount: number, widthCount: number): string {
+  const lc = Number(lengthCount) || 0;
+  const wc = Number(widthCount) || 0;
+  if (lc && wc) return `طول (${lc}) و عرض (${wc})`;
+  if (lc) return `فقط طول (${lc})`;
+  if (wc) return `فقط عرض (${wc})`;
   return 'ندارد';
 }
 

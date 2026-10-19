@@ -10,7 +10,9 @@ import {
   createPartId,
   createSampleParts,
   isEmptyPart,
+  normalizeEdgeCount,
   type CutPart,
+  type EdgeCount,
   type EditableField,
   type FlagField,
 } from '../types/part';
@@ -52,6 +54,13 @@ function parseQty(raw: string): number {
   return Number.isFinite(value) ? value : 0;
 }
 
+function parseEdgeCount(raw: string): EdgeCount {
+  const cleaned = normalizeDigits(raw).replace(/[^0-9]/g, '');
+  if (!cleaned) return 0;
+  const n = parseInt(cleaned, 10);
+  return normalizeEdgeCount(Number.isFinite(n) ? Math.min(2, Math.max(0, n)) : 0);
+}
+
 /* ---------------- کلاس‌های ظاهری گروه‌های ستونی ---------------- */
 
 /** هر گروه (نوار/فارسی/شیار) رنگ متمایز مخصوص خودش را دارد */
@@ -60,22 +69,22 @@ const GROUP = {
     header: 'bg-teal-200/80 text-teal-950 border-teal-300',
     subHeader: 'bg-teal-100 text-teal-900 border-teal-200',
     cell: 'bg-teal-50 border-teal-200/80',
-    cellChecked: 'bg-teal-200/70',
-    checkbox: 'accent-teal-700',
+    cellActive: 'bg-teal-200/70',
+    ring: 'focus:ring-teal-500',
   },
   farsi: {
     header: 'bg-rose-200/90 text-rose-950 border-rose-300',
     subHeader: 'bg-rose-100 text-rose-900 border-rose-200',
     cell: 'bg-rose-50 border-rose-200/80',
-    cellChecked: 'bg-rose-200/80',
-    checkbox: 'accent-rose-700',
+    cellActive: 'bg-rose-200/80',
+    ring: 'focus:ring-rose-500',
   },
   groove: {
     header: 'bg-amber-200/80 text-amber-950 border-amber-300',
     subHeader: 'bg-amber-100 text-amber-900 border-amber-200',
     cell: 'bg-amber-50 border-amber-200/80',
-    cellChecked: 'bg-amber-200/70',
-    checkbox: 'accent-amber-700',
+    cellActive: 'bg-amber-200/70',
+    ring: 'focus:ring-amber-500',
   },
 } as const;
 
@@ -87,12 +96,7 @@ export default function DataEntryTable({
   activeId,
   onActiveChange,
 }: DataEntryTableProps) {
-  /**
-   * نگاشت رف‌های اینپوت‌ها: کلید = `${rowId}:${field}`
-   * برای مدیریت فوکوس در ناوبری کیبورد (Enter / جهت‌نماها) استفاده می‌شود.
-   */
   const inputRefs = useRef(new Map<string, HTMLInputElement>());
-  /** فوکوس معلّق: بعد از رندر ردیف جدید اعمال می‌شود */
   const pendingFocusRef = useRef<{ id: string; field: EditableField } | null>(null);
 
   const registerRef =
@@ -111,7 +115,6 @@ export default function DataEntryTable({
     }
   };
 
-  /** اعمال فوکوس معلّق پس از اضافه‌شدن/حذف ردیف و رندر مجدد */
   useEffect(() => {
     const pending = pendingFocusRef.current;
     if (pending) {
@@ -120,25 +123,18 @@ export default function DataEntryTable({
     }
   }, [rows]);
 
-  /** فوکوس اولیه روی «نام قطعه» ردیف اول هنگام بارگذاری صفحه */
   useEffect(() => {
     const firstEmpty = rows.find(isEmptyPart) ?? rows[0];
     if (firstEmpty) focusField(firstEmpty.id, 'name');
-    // فقط در مونت اولیه
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  /* ---------------- عملیات روی ردیف‌ها ---------------- */
 
   const updateRow = (id: string, patch: Partial<CutPart>) => {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   };
 
-  /** درج ردیف جدید بلافاصله بعد از ردیف جاری و انتقال فوکوس به نام قطعهٔ آن */
   const insertRowAfter = (afterId: string | null, source?: CutPart) => {
-    // در حالت تکثیر، مقادیر از ردیف مبدأ کپی می‌شود ولی شناسه تازه است
     const fresh: CutPart = source ? { ...source, id: createPartId() } : createPart();
-
     pendingFocusRef.current = { id: fresh.id, field: 'name' };
     onActiveChange(fresh.id);
     setRows((prev) => {
@@ -187,16 +183,6 @@ export default function DataEntryTable({
     setRows([fresh]);
   };
 
-  /* ---------------- ناوبری کیبورد ---------------- */
-
-  /**
-   * رفتار اصلی (طبق مشخصات):
-   *  Enter در نام قطعه ← طول
-   *  Enter در طول      ← عرض
-   *  Enter در عرض      ← تعداد
-   *  Enter در تعداد    ← درج ردیف جدید و فوکوس روی نام قطعهٔ ردیف جدید
-   * امکانات تکمیلی: جهت‌نمای بالا/پایین بین ردیف‌ها در همان ستون حرکت می‌کند.
-   */
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>, row: CutPart, field: EditableField) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -208,7 +194,6 @@ export default function DataEntryTable({
       }
       return;
     }
-
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
       const idx = rows.findIndex((r) => r.id === row.id);
@@ -220,44 +205,53 @@ export default function DataEntryTable({
     }
   };
 
-  /* ---------------- سلول‌های کمکی ---------------- */
-
+  // ورودی عددی ۰/۱/۲ برای عملیات لبه — جایگزین چک‌باکس قدیمی
   const renderFlagCell = (row: CutPart, flag: FlagField, groupKey: GroupKey, label: string) => {
     const group = GROUP[groupKey];
-    const checked = row[flag];
+    const rawValue = row[flag] as unknown as number;
+    const value = normalizeEdgeCount(rawValue);
+    const hasValue = value > 0;
     const isFarsi = groupKey === 'farsi';
     return (
       <td
         key={flag}
-        className={`border p-0 align-middle ${group.cell} ${checked ? group.cellChecked : ''}`}
+        className={`border p-0 align-middle ${group.cell} ${hasValue ? group.cellActive : ''}`}
       >
-        <label
-          className="flex h-full w-full cursor-pointer items-center justify-center gap-1 px-1 py-2.5"
-          title={label}
-        >
+        <div className="flex items-center justify-center gap-0.5 px-1 py-1">
           <input
-            type="checkbox"
-            checked={checked}
+            type="text"
+            inputMode="numeric"
+            dir="ltr"
             aria-label={label}
-            onChange={(e) => updateRow(row.id, { [flag]: e.target.checked })}
-            onFocus={() => onActiveChange(row.id)}
-            className={`h-[18px] w-[18px] shrink-0 ${group.checkbox}`}
+            value={value ? String(value) : ''}
+            placeholder="۰"
+            onChange={(e) => updateRow(row.id, { [flag]: parseEdgeCount(e.target.value) } as Partial<CutPart>)}
+            onFocus={(e) => {
+              onActiveChange(row.id);
+              e.target.select();
+            }}
+            onKeyDown={(e) => {
+              // کلیدهای ↑/↓ مقدار ۰/۱/۲ را تغییر می‌دهند
+              if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                const cur = normalizeEdgeCount(row[flag] as unknown as number);
+                const delta = e.key === 'ArrowUp' ? 1 : -1;
+                const next = Math.min(2, Math.max(0, cur + delta)) as EdgeCount;
+                updateRow(row.id, { [flag]: next } as Partial<CutPart>);
+                return;
+              }
+              // Enter بین عددی‌ها حرکت نکند — ولی اجازه می‌دهیم برای راحتی
+            }}
+            className={`h-8 w-9 rounded-md border bg-white px-1 text-center text-sm font-black tabular-nums outline-none transition focus:border-slate-400 focus:ring-2 ${group.ring} ${hasValue ? 'border-slate-300 text-slate-900' : 'border-slate-200 text-slate-400 placeholder:text-slate-300'}`}
+            title={`${label} — مقدار ۰ بدون، ۱ یک لبه، ۲ هر دو لبه`}
           />
-          {/* در ستون فارسی، آیکون مثلث/خط مورب کنار چک‌باکس می‌آید تا شکل
-              نمایش آن در نقشهٔ برش (خط قرمز + هاشور + ۴۵°) برای کاربر روشن باشد */}
           {isFarsi && (
             <span className="inline-flex items-center gap-0.5" aria-hidden="true">
-              <FarsiIcon active={checked} />
-              <span
-                className={`text-[10px] font-bold leading-none ${
-                  checked ? 'text-rose-700' : 'text-rose-400/70'
-                }`}
-              >
-                ۴۵°
-              </span>
+              <FarsiIcon active={hasValue} />
+              <span className={`text-[10px] font-bold leading-none ${hasValue ? 'text-rose-700' : 'text-rose-400/70'}`}>۴۵°</span>
             </span>
           )}
-        </label>
+        </div>
       </td>
     );
   };
@@ -267,7 +261,6 @@ export default function DataEntryTable({
 
   return (
     <section className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-300/70">
-      {/* نوار ابزار جدول */}
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3">
         <button
           type="button"
@@ -299,79 +292,32 @@ export default function DataEntryTable({
           پاک‌کردن همه
         </button>
         <span className="ms-auto hidden text-xs text-slate-500 lg:block">
-          برای ثبت سریع: در ستون «تعداد» کلید
-          <kbd className="mx-1 rounded border border-slate-300 bg-white px-1.5 py-0.5 font-sans text-[11px] font-bold text-slate-700 shadow-[0_1px_0_#cbd5e1]">
-            Enter ↵
-          </kbd>
-          را بزنید تا ردیف جدید ساخته شود.
+          ورودی ۰/۱/۲: ۰ بدون · ۱ یک لبه · ۲ هر دو لبه — ↑/↓ برای تغییر
+          <span className="mx-2 text-slate-300">|</span>
+          Enter در «تعداد» → ردیف جدید
         </span>
       </div>
 
-      {/* جدول ورود اطلاعات */}
       <div className="table-scroll max-h-[62vh] overflow-auto">
         <table className="w-full min-w-[1020px] border-collapse text-sm">
           <thead>
-            {/* سطح اول هدر */}
             <tr className="text-center">
-              <th
-                rowSpan={2}
-                className="sticky top-0 z-20 h-11 w-12 border border-slate-300 bg-slate-700 px-1 text-white"
-              >
-                ردیف
-              </th>
-              <th
-                rowSpan={2}
-                className="sticky top-0 z-20 border border-slate-300 bg-slate-700 px-2 text-white"
-              >
-                نام قطعه
-              </th>
-              <th
-                rowSpan={2}
-                className="sticky top-0 z-20 w-28 border border-slate-300 bg-slate-700 px-2 text-white"
-              >
-                طول <span className="block text-[10px] font-normal text-slate-300">(میلی‌متر)</span>
-              </th>
-              <th
-                rowSpan={2}
-                className="sticky top-0 z-20 w-28 border border-slate-300 bg-slate-700 px-2 text-white"
-              >
-                عرض <span className="block text-[10px] font-normal text-slate-300">(میلی‌متر)</span>
-              </th>
-              <th
-                rowSpan={2}
-                className="sticky top-0 z-20 w-20 border border-slate-300 bg-slate-700 px-2 text-white"
-              >
-                تعداد
-              </th>
+              <th rowSpan={2} className="sticky top-0 z-20 h-11 w-12 border border-slate-300 bg-slate-700 px-1 text-white">ردیف</th>
+              <th rowSpan={2} className="sticky top-0 z-20 border border-slate-300 bg-slate-700 px-2 text-white">نام قطعه</th>
+              <th rowSpan={2} className="sticky top-0 z-20 w-28 border border-slate-300 bg-slate-700 px-2 text-white">طول <span className="block text-[10px] font-normal text-slate-300">(میلی‌متر)</span></th>
+              <th rowSpan={2} className="sticky top-0 z-20 w-28 border border-slate-300 bg-slate-700 px-2 text-white">عرض <span className="block text-[10px] font-normal text-slate-300">(میلی‌متر)</span></th>
+              <th rowSpan={2} className="sticky top-0 z-20 w-20 border border-slate-300 bg-slate-700 px-2 text-white">تعداد</th>
               <th colSpan={2} className={`sticky top-0 z-20 border px-2 py-1.5 ${GROUP.band.header}`}>
-                <span className="inline-flex items-center gap-1.5 font-extrabold">
-                  <BandIcon />
-                  نوار
-                  <span className="text-[10px] font-medium opacity-70">(لبه‌چسب)</span>
-                </span>
+                <span className="inline-flex items-center gap-1.5 font-extrabold"><BandIcon /> نوار <span className="text-[10px] font-medium opacity-70">(لبه‌چسب)</span> <span className="ms-1 rounded bg-white/70 px-1 py-0.5 text-[10px] font-black text-teal-800">۰/۱/۲</span></span>
               </th>
               <th colSpan={2} className={`sticky top-0 z-20 border px-2 py-1.5 ${GROUP.farsi.header}`}>
-                <span className="inline-flex items-center gap-1.5 font-extrabold">
-                  <FarsiIcon active />
-                  فارسی
-                  <span className="text-[10px] font-medium opacity-70">(برش ۴۵°)</span>
-                </span>
+                <span className="inline-flex items-center gap-1.5 font-extrabold"><FarsiIcon active /> فارسی <span className="text-[10px] font-medium opacity-70">(برش ۴۵°)</span> <span className="ms-1 rounded bg-white/70 px-1 py-0.5 text-[10px] font-black text-rose-800">۰/۱/۲</span></span>
               </th>
               <th colSpan={2} className={`sticky top-0 z-20 border px-2 py-1.5 ${GROUP.groove.header}`}>
-                <span className="inline-flex items-center gap-1.5 font-extrabold">
-                  <GrooveIcon />
-                  شیار
-                  <span className="text-[10px] font-medium opacity-70">(ورق ۳ میل)</span>
-                </span>
+                <span className="inline-flex items-center gap-1.5 font-extrabold"><GrooveIcon /> شیار <span className="text-[10px] font-medium opacity-70">(ورق ۳ میل)</span> <span className="ms-1 rounded bg-white/70 px-1 py-0.5 text-[10px] font-black text-amber-800">۰/۱/۲</span></span>
               </th>
-              <th
-                rowSpan={2}
-                className="sticky top-0 z-20 w-24 border border-slate-300 bg-slate-700 px-1 text-white"
-              >
-                عملیات
-              </th>
+              <th rowSpan={2} className="sticky top-0 z-20 w-24 border border-slate-300 bg-slate-700 px-1 text-white">عملیات</th>
             </tr>
-            {/* سطح دوم هدر: زیرستون‌های طول / عرض */}
             <tr className="text-center text-xs">
               <th className={`sticky top-11 z-20 w-[76px] border px-1 py-1.5 ${GROUP.band.subHeader}`}>طول</th>
               <th className={`sticky top-11 z-20 w-[76px] border px-1 py-1.5 ${GROUP.band.subHeader}`}>عرض</th>
@@ -381,7 +327,6 @@ export default function DataEntryTable({
               <th className={`sticky top-11 z-20 w-[76px] border px-1 py-1.5 ${GROUP.groove.subHeader}`}>عرض</th>
             </tr>
           </thead>
-
           <tbody>
             {rows.map((row, index) => {
               const isActive = row.id === activeId;
@@ -392,150 +337,33 @@ export default function DataEntryTable({
                   (field === 'length' && row.length <= 0) ||
                   (field === 'width' && row.width <= 0) ||
                   (field === 'qty' && row.qty <= 0));
-
               return (
-                <tr
-                  key={row.id}
-                  onMouseDown={() => onActiveChange(row.id)}
-                  className={`transition-colors ${
-                    isActive ? 'bg-sky-50' : index % 2 === 1 ? 'bg-slate-50/60 hover:bg-slate-100/70' : 'hover:bg-slate-100/70'
-                  }`}
-                >
-                  {/* شماره ردیف */}
-                  <td
-                    className={`border border-slate-200 px-1 py-2 text-center align-middle font-bold ${
-                      isActive ? 'text-sky-800' : 'text-slate-500'
-                    }`}
-                  >
-                    <span
-                      className={`inline-flex min-h-6 min-w-6 items-center justify-center rounded-md px-1 text-xs ${
-                        isActive ? 'bg-sky-700 text-white' : 'bg-slate-200/80 text-slate-600'
-                      }`}
-                    >
-                      {faNumber.format(index + 1)}
-                    </span>
+                <tr key={row.id} onMouseDown={() => onActiveChange(row.id)} className={`transition-colors ${isActive ? 'bg-sky-50' : index % 2 === 1 ? 'bg-slate-50/60 hover:bg-slate-100/70' : 'hover:bg-slate-100/70'}`}>
+                  <td className={`border border-slate-200 px-1 py-2 text-center align-middle font-bold ${isActive ? 'text-sky-800' : 'text-slate-500'}`}>
+                    <span className={`inline-flex min-h-6 min-w-6 items-center justify-center rounded-md px-1 text-xs ${isActive ? 'bg-sky-700 text-white' : 'bg-slate-200/80 text-slate-600'}`}>{faNumber.format(index + 1)}</span>
                   </td>
-
-                  {/* نام قطعه */}
                   <td className="border border-slate-200 p-0 align-middle">
-                    <input
-                      ref={registerRef(row.id, 'name')}
-                      type="text"
-                      value={row.name}
-                      placeholder="نام قطعه…"
-                      aria-label={`نام قطعه ردیف ${index + 1}`}
-                      onChange={(e) => updateRow(row.id, { name: e.target.value })}
-                      onKeyDown={(e) => handleKeyDown(e, row, 'name')}
-                      onFocus={(e) => {
-                        onActiveChange(row.id);
-                        e.target.select();
-                      }}
-                      className={`${inputBase} font-medium placeholder:font-normal placeholder:text-slate-300 ${
-                        invalid('name') ? 'bg-rose-50 placeholder:text-rose-300' : ''
-                      }`}
-                    />
+                    <input ref={registerRef(row.id, 'name')} type="text" value={row.name} placeholder="نام قطعه…" aria-label={`نام قطعه ردیف ${index + 1}`} onChange={(e) => updateRow(row.id, { name: e.target.value })} onKeyDown={(e) => handleKeyDown(e, row, 'name')} onFocus={(e) => { onActiveChange(row.id); e.target.select(); }} className={`${inputBase} font-medium placeholder:font-normal placeholder:text-slate-300 ${invalid('name') ? 'bg-rose-50 placeholder:text-rose-300' : ''}`} />
                   </td>
-
-                  {/* طول */}
                   <td className="border border-slate-200 p-0 align-middle">
-                    <input
-                      ref={registerRef(row.id, 'length')}
-                      type="text"
-                      inputMode="decimal"
-                      dir="ltr"
-                      value={row.length ? String(row.length) : ''}
-                      placeholder="0"
-                      aria-label={`طول ردیف ${index + 1}`}
-                      onChange={(e) => updateRow(row.id, { length: parseDimension(e.target.value) })}
-                      onKeyDown={(e) => handleKeyDown(e, row, 'length')}
-                      onFocus={(e) => {
-                        onActiveChange(row.id);
-                        e.target.select();
-                      }}
-                      className={`${inputBase} text-center font-semibold tabular-nums placeholder:text-slate-300 ${
-                        invalid('length') ? 'bg-rose-50' : ''
-                      }`}
-                    />
+                    <input ref={registerRef(row.id, 'length')} type="text" inputMode="decimal" dir="ltr" value={row.length ? String(row.length) : ''} placeholder="0" aria-label={`طول ردیف ${index + 1}`} onChange={(e) => updateRow(row.id, { length: parseDimension(e.target.value) })} onKeyDown={(e) => handleKeyDown(e, row, 'length')} onFocus={(e) => { onActiveChange(row.id); e.target.select(); }} className={`${inputBase} text-center font-semibold tabular-nums placeholder:text-slate-300 ${invalid('length') ? 'bg-rose-50' : ''}`} />
                   </td>
-
-                  {/* عرض */}
                   <td className="border border-slate-200 p-0 align-middle">
-                    <input
-                      ref={registerRef(row.id, 'width')}
-                      type="text"
-                      inputMode="decimal"
-                      dir="ltr"
-                      value={row.width ? String(row.width) : ''}
-                      placeholder="0"
-                      aria-label={`عرض ردیف ${index + 1}`}
-                      onChange={(e) => updateRow(row.id, { width: parseDimension(e.target.value) })}
-                      onKeyDown={(e) => handleKeyDown(e, row, 'width')}
-                      onFocus={(e) => {
-                        onActiveChange(row.id);
-                        e.target.select();
-                      }}
-                      className={`${inputBase} text-center font-semibold tabular-nums placeholder:text-slate-300 ${
-                        invalid('width') ? 'bg-rose-50' : ''
-                      }`}
-                    />
+                    <input ref={registerRef(row.id, 'width')} type="text" inputMode="decimal" dir="ltr" value={row.width ? String(row.width) : ''} placeholder="0" aria-label={`عرض ردیف ${index + 1}`} onChange={(e) => updateRow(row.id, { width: parseDimension(e.target.value) })} onKeyDown={(e) => handleKeyDown(e, row, 'width')} onFocus={(e) => { onActiveChange(row.id); e.target.select(); }} className={`${inputBase} text-center font-semibold tabular-nums placeholder:text-slate-300 ${invalid('width') ? 'bg-rose-50' : ''}`} />
                   </td>
-
-                  {/* تعداد */}
                   <td className="border border-slate-200 p-0 align-middle">
-                    <input
-                      ref={registerRef(row.id, 'qty')}
-                      type="text"
-                      inputMode="numeric"
-                      dir="ltr"
-                      value={row.qty ? String(row.qty) : ''}
-                      placeholder="1"
-                      aria-label={`تعداد ردیف ${index + 1}`}
-                      onChange={(e) => updateRow(row.id, { qty: parseQty(e.target.value) })}
-                      onKeyDown={(e) => handleKeyDown(e, row, 'qty')}
-                      onFocus={(e) => {
-                        onActiveChange(row.id);
-                        e.target.select();
-                      }}
-                      className={`${inputBase} text-center font-semibold tabular-nums placeholder:text-slate-300 ${
-                        invalid('qty') ? 'bg-rose-50' : ''
-                      }`}
-                    />
+                    <input ref={registerRef(row.id, 'qty')} type="text" inputMode="numeric" dir="ltr" value={row.qty ? String(row.qty) : ''} placeholder="1" aria-label={`تعداد ردیف ${index + 1}`} onChange={(e) => updateRow(row.id, { qty: parseQty(e.target.value) })} onKeyDown={(e) => handleKeyDown(e, row, 'qty')} onFocus={(e) => { onActiveChange(row.id); e.target.select(); }} className={`${inputBase} text-center font-semibold tabular-nums placeholder:text-slate-300 ${invalid('qty') ? 'bg-rose-50' : ''}`} />
                   </td>
-
-                  {/* نوار: طول / عرض */}
                   {renderFlagCell(row, 'bandLength', 'band', `نوار در طول — ردیف ${index + 1}`)}
                   {renderFlagCell(row, 'bandWidth', 'band', `نوار در عرض — ردیف ${index + 1}`)}
-
-                  {/* فارسی (برش ۴۵°): طول / عرض */}
                   {renderFlagCell(row, 'farsiLength', 'farsi', `برش فارسی ۴۵ درجه در طول — ردیف ${index + 1}`)}
                   {renderFlagCell(row, 'farsiWidth', 'farsi', `برش فارسی ۴۵ درجه در عرض — ردیف ${index + 1}`)}
-
-                  {/* شیار: طول / عرض */}
                   {renderFlagCell(row, 'grooveLength', 'groove', `شیار در طول — ردیف ${index + 1}`)}
                   {renderFlagCell(row, 'grooveWidth', 'groove', `شیار در عرض — ردیف ${index + 1}`)}
-
-                  {/* عملیات: تکثیر / حذف */}
                   <td className="border border-slate-200 px-1 py-1.5 text-center align-middle">
                     <div className="flex items-center justify-center gap-1">
-                      <button
-                        type="button"
-                        title="تکثیر ردیف"
-                        aria-label={`تکثیر ردیف ${index + 1}`}
-                        onClick={() => insertRowAfter(row.id, row)}
-                        className="rounded-md p-1.5 text-slate-500 transition hover:bg-sky-100 hover:text-sky-700"
-                      >
-                        <CopyIcon />
-                      </button>
-                      <button
-                        type="button"
-                        title="حذف ردیف"
-                        aria-label={`حذف ردیف ${index + 1}`}
-                        disabled={rows.length <= 1}
-                        onClick={() => deleteRow(row.id)}
-                        className="rounded-md p-1.5 text-slate-500 transition hover:bg-rose-100 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"
-                      >
-                        <TrashIcon />
-                      </button>
+                      <button type="button" title="تکثیر ردیف" aria-label={`تکثیر ردیف ${index + 1}`} onClick={() => insertRowAfter(row.id, row)} className="rounded-md p-1.5 text-slate-500 transition hover:bg-sky-100 hover:text-sky-700"><CopyIcon /></button>
+                      <button type="button" title="حذف ردیف" aria-label={`حذف ردیف ${index + 1}`} disabled={rows.length <= 1} onClick={() => deleteRow(row.id)} className="rounded-md p-1.5 text-slate-500 transition hover:bg-rose-100 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent"><TrashIcon /></button>
                     </div>
                   </td>
                 </tr>
@@ -544,18 +372,7 @@ export default function DataEntryTable({
           </tbody>
         </table>
       </div>
-
-      {/* پابرگ جدول: ردیف افزودن سریع */}
-      <button
-        type="button"
-        onClick={() => insertRowAfter(rows[rows.length - 1]?.id ?? null)}
-        className="flex w-full items-center justify-center gap-1.5 border-t border-dashed border-slate-300 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-sky-800 transition hover:bg-sky-50"
-      >
-        <PlusIcon className="h-3.5 w-3.5" />
-        افزودن ردیف جدید
-        <span className="text-xs font-normal text-slate-400">(یا Enter در ستون تعداد)</span>
-      </button>
-
+      <button type="button" onClick={() => insertRowAfter(rows[rows.length - 1]?.id ?? null)} className="flex w-full items-center justify-center gap-1.5 border-t border-dashed border-slate-300 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-sky-800 transition hover:bg-sky-50"><PlusIcon className="h-3.5 w-3.5" /> افزودن ردیف جدید <span className="text-xs font-normal text-slate-400">(یا Enter در ستون تعداد)</span></button>
     </section>
   );
 }
