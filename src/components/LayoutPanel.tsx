@@ -63,8 +63,8 @@ export default function LayoutPanel({
   const resultParts = layoutState?.partsSnapshot ?? [];
   const resultRef = useRef<HTMLDivElement | null>(null);
   const isFirstResultRef = useRef(true);
-  /** حالت سند چاپی فعال: نقشه یا لیبل (فاز ۴) */
-  const [printMode, setPrintMode] = useState<'map' | 'labels' | null>(null);
+  /** حالت سند چاپی فعال: نقشه، لیبل یا برگهٔ کنترل (فاز ۴) */
+  const [printMode, setPrintMode] = useState<'map' | 'labels' | 'control' | null>(null);
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [showJson, setShowJson] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -370,7 +370,7 @@ export default function LayoutPanel({
             </div>
           )}
 
-          {/* فاز ۴: نوار ابزار خروجی‌ها (پرینت نقشه / DXF / لیبل) */}
+          {/* فاز ۴: نوار ابزار خروجی‌ها (نقشه / DXF / لیبل / برگه کنترل) */}
           {result.sheets.length > 0 && (
             <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-slate-800 px-3 py-2.5">
               <span className="text-xs font-extrabold text-slate-200">خروجی‌ها:</span>
@@ -378,10 +378,19 @@ export default function LayoutPanel({
                 type="button"
                 onClick={() => setPrintMode('map')}
                 disabled={isStale}
-                title={isStale ? 'ابتدا دوباره محاسبه کنید' : 'چاپ نقشه روی A4 افقی (قابل ذخیره به‌صورت PDF)'}
+                title={isStale ? 'ابتدا دوباره محاسبه کنید' : 'چاپ نقشهٔ سیاه‌وسفید روی A4 افقی (قابل ذخیره به‌صورت PDF)'}
                 className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-slate-800 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
               >
                 🖨️ پرینت نقشه (PDF)
+              </button>
+              <button
+                type="button"
+                onClick={() => setPrintMode('control')}
+                disabled={isStale}
+                title={isStale ? 'ابتدا دوباره محاسبه کنید' : 'چاپ برگهٔ کنترل تولید با مربع‌های تیک و فاکتور متریال'}
+                className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-slate-800 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                🧾 چاپ برگه کنترل
               </button>
               <button
                 type="button"
@@ -492,9 +501,13 @@ export default function LayoutPanel({
         <div className="print-portal">
           {printMode === 'map' ? (
             <PrintMapDocument result={result} parts={resultParts} />
-          ) : (
+          ) : printMode === 'labels' ? (
             <div className="print-doc-labels">
               <LabelSheet placements={result.placements} parts={resultParts} />
+            </div>
+          ) : (
+            <div className="print-doc-control">
+              <ControlSheet result={result} parts={resultParts} forPrint />
             </div>
           )}
         </div>,

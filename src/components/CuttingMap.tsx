@@ -6,7 +6,6 @@ import type {
 } from '../algorithm';
 import type { CutPart } from '../types/part';
 import { GROOVE_INSET_MM, sidesForFlags, type PartSide as Side } from '../partEdges';
-import { BandIcon, FarsiIcon, GrooveIcon } from './icons';
 
 /**
  * A-Cut 2Dpro — فاز ۳: نقشهٔ برش (Cutting Map)
@@ -15,11 +14,12 @@ import { BandIcon, FarsiIcon, GrooveIcon } from './icons';
  * واحد دستگاه مختصات خودِ میلی‌متر است (viewBox برابر ابعاد صفحهٔ خام)،
  * پس نقشه در هر اندازه‌ای بدون افت کیفیت و با حفظ نسبت ابعاد نمایش داده می‌شود.
  *
- * قرارداد رندر علائم کارگاهی (طبق قرارداد فاز ۱) برای هر قطعه از روی ردیف
- * متناظر همان قطعه (`id`) در جدول خوانده می‌شود:
- *  - نوار  : خط ضخیم سبزآبی روی لبه
- *  - فارسی: خط‌چین قرمز روی لبه + مثلث کوچک + برچسب «45°»
- *  - شیار  : خط‌چین کهربایی در فاصلهٔ ~۱۰ میلی‌متر داخل قطعه، موازی لبه
+ * قرارداد رندر سیاه‌وسفید علائم کارگاهی برای هر قطعه از روی ردیف متناظر
+ * همان قطعه (`id`) در جدول خوانده می‌شود:
+ *  - بدنهٔ قطعه: سفید با حاشیهٔ مشکی
+ *  - نوار: خط ممتد مشکی روی لبه
+ *  - فارسی: خط ممتد مشکی + مثلث پر + برچسب «45°»
+ *  - شیار: خط‌چین مشکی در فاصلهٔ ۱۰ میلی‌متر داخل قطعه، موازی لبه
  *
  * نگاشت لبه‌ها هنگام چرخش: فلگ‌های «طول» یعنی دو لبهٔ موازی با محور طول قطعه.
  * اگر قطعه روی نقشه ۹۰ درجه چرخیده باشد (`isRotated`)، محور طول آن عمودی
@@ -30,41 +30,18 @@ const faNumber = new Intl.NumberFormat('fa-IR');
 const faDecimal = new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 1 });
 
 const COLOR = {
-  sheetBorder: '#1e293b',
-  wasteFill: '#eef2f7',
-  wasteFill2: '#f1f5f9',
-  wasteLine: '#cbd5e1',
-  wasteLine2: '#94a3b8',
-  band: '#0d9488', // teal-600
-  farsi: '#dc2626', // red-600 — روی همهٔ پس‌زمینه‌ها خوانا بماند
-  farsiFill: '#fecdd3',
-  groove: '#d97706', // amber-600
-  text: '#1e293b',
+  sheetBorder: '#000000',
+  wasteFill: '#ffffff',
+  wasteLine: '#666666',
+  wasteLine2: '#000000',
+  band: '#000000',
+  farsi: '#000000',
+  farsiFill: '#000000',
+  groove: '#000000',
+  partFill: '#ffffff',
+  partStroke: '#000000',
+  text: '#000000',
 };
-
-/** پالت ثابت و ملایم؛ همهٔ نمونه‌های یک ردیف (id یکسان) هم‌رنگ رسم می‌شوند */
-const PALETTE: [fill: string, stroke: string][] = [
-  ['#dbeafe', '#3b82f6'],
-  ['#dcfce7', '#22c55e'],
-  ['#fef9c3', '#ca8a04'],
-  ['#ffe4e6', '#f43f5e'],
-  ['#e0e7ff', '#6366f1'],
-  ['#ccfbf1', '#0d9488'],
-  ['#ffedd5', '#ea580c'],
-  ['#f3e8ff', '#9333ea'],
-  ['#e2e8f0', '#64748b'],
-  ['#fce7f3', '#db2777'],
-  ['#ecfccb', '#65a30d'],
-  ['#cffafe', '#0891b2'],
-];
-
-function colorForPart(id: string): [string, string] {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) {
-    hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  }
-  return PALETTE[hash % PALETTE.length];
-}
 
 
 /* ------------------------------------------------------------------ */
@@ -83,14 +60,13 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
   const { x, y, width: w, height: h, isRotated } = placement;
   const cx = x + w / 2;
   const cy = y + h / 2;
-  const [fill, stroke] = colorForPart(placement.id);
 
   const bandSides = source ? sidesForFlags(source.bandLength, source.bandWidth, isRotated) : [];
   const farsiSides = source ? sidesForFlags(source.farsiLength, source.farsiWidth, isRotated) : [];
   const grooveSides = source ? sidesForFlags(source.grooveLength, source.grooveWidth, isRotated) : [];
 
   /* ضخامت‌ها (بر حسب میلی‌متر نقشه، مقیاس‌شده نسبت به اندازهٔ ورق) */
-  const bandStroke = 3.4 * s;
+  const bandStroke = 4 * s;
   const farsiStroke = 2.6 * s;
   const grooveStroke = 2 * s;
 
@@ -115,17 +91,13 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
     bandSides.includes(side)
       ? bandInset + bandStroke / 2 + farsiStroke / 2 + 1.4 * s
       : farsiStroke / 2 + 0.5 * s;
-  const grooveInsetFor = (side: Side) => {
-    let inset = Math.min(GROOVE_INSET_MM, Math.min(w, h) / 4); // ~۱۰ میلی‌متر واقعی داخل قطعه
-    if (bandSides.includes(side)) inset = Math.max(inset, bandInset + bandStroke / 2 + 2.2 * s);
-    if (farsiSides.includes(side)) inset = Math.max(inset, farsiInsetFor(side) + farsiStroke / 2 + 2.2 * s);
-    return inset;
-  };
+  /** شیار در فاصلهٔ واقعی ۱۰ میلی‌متر از لبه است؛ در قطعات باریک رندر نمی‌شود. */
+  const grooveInset = GROOVE_INSET_MM;
 
-  /** نشانگر فارسی: مثلث قائم‌الزاویهٔ کوچک + برچسب 45° در میانهٔ لبه */
+  /** نشانگر فارسی: مثلث قائم‌الزاویهٔ پر + برچسب 45° در میانهٔ لبه */
   const renderFarsiMarker = (side: Side) => {
     const edgeLength = side === 'top' || side === 'bottom' ? w : h;
-    if (edgeLength < 20 * s) return null; // قطعه خیلی کوچک است؛ خط‌چین قرمز کافی است
+    if (edgeLength < 20 * s) return null; // قطعه خیلی کوچک است؛ خط ممتد فارسی کافی است
 
     const t = 9 * s; // اندازهٔ مثلث
     const inset = farsiInsetFor(side);
@@ -167,16 +139,6 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
             stroke={COLOR.farsi}
             strokeWidth={0.9 * s}
             strokeLinejoin="round"
-          />
-          {/* وتر مورب = خودِ خط برش ۴۵ درجه */}
-          <line
-            x1={-t / 2}
-            y1={t / 2}
-            x2={t / 2}
-            y2={-t / 2}
-            stroke={COLOR.farsi}
-            strokeWidth={1.6 * s}
-            strokeLinecap="round"
           />
         </g>
         <text
@@ -298,32 +260,39 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
       </title>
 
       {/* بدنهٔ قطعه */}
-      <rect x={x} y={y} width={w} height={h} fill={fill} stroke={stroke} strokeWidth={1.1 * s} />
+      <rect
+        x={x}
+        y={y}
+        width={w}
+        height={h}
+        fill={COLOR.partFill}
+        stroke={COLOR.partStroke}
+        strokeWidth={1.8 * s}
+      />
 
-      {/* شیار: خط‌چین کهربایی موازی لبه و داخل قطعه */}
+      {/* شیار: خط‌چین مشکی، دقیقاً ۱۰ میلی‌متر داخل قطعه */}
       {grooveSides.map((side) => {
-        const inset = grooveInsetFor(side);
-        if (inset >= Math.min(w, h) / 2) return null;
-        const l = lineFor(side, inset);
+        if (grooveInset >= Math.min(w, h) / 2) return null;
+        const l = lineFor(side, grooveInset);
         return (
           <line
             key={`groove-${side}`}
             {...l}
             stroke={COLOR.groove}
             strokeWidth={grooveStroke}
-            strokeDasharray={`${6 * s} ${4 * s}`}
+            strokeDasharray="4,4"
             strokeLinecap="round"
           />
         );
       })}
 
-      {/* نوار: خط ضخیم سبزآبی روی لبه */}
+      {/* نوار: خط ممتد مشکی روی لبه */}
       {bandSides.map((side) => {
         const l = lineFor(side, bandInset);
         return <line key={`band-${side}`} {...l} stroke={COLOR.band} strokeWidth={bandStroke} />;
       })}
 
-      {/* فارسی: خط‌چین قرمز روی لبه + مثلث و برچسب 45° */}
+      {/* فارسی: خط ممتد مشکی روی لبه + مثلث پر و برچسب 45° */}
       {farsiSides.map((side) => {
         const l = lineFor(side, farsiInsetFor(side));
         return (
@@ -332,7 +301,6 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
             {...l}
             stroke={COLOR.farsi}
             strokeWidth={farsiStroke}
-            strokeDasharray={`${9 * s} ${5 * s}`}
           />
         );
       })}
@@ -379,21 +347,30 @@ export default function CuttingMap({ sheets, stock, parts, forPrint = false }: C
           </span>
         </h3>
 
-        <ul className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold text-slate-600">
+        <ul className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold text-slate-700">
           <li className="flex items-center gap-1">
-            <BandIcon active className="h-4 w-4" /> نوار: خط ضخیم سبزآبی
+            <span className="inline-block w-7 border-t-[4px] border-black" aria-hidden />
+            نوار: خط ممتد مشکی
           </li>
           <li className="flex items-center gap-1">
-            <FarsiIcon active className="h-4 w-4" />
-            <span>
-              فارسی: خط‌چین <span className="text-rose-700">قرمز</span> + مثلث + 45°
-            </span>
+            <svg viewBox="0 0 28 18" className="h-4 w-7" aria-hidden="true">
+              <line x1="1" y1="9" x2="27" y2="9" stroke="#000" strokeWidth="2" />
+              <polygon points="11,3 20,3 20,12" fill="#000" />
+            </svg>
+            فارسی: خط ممتد + مثلث پر + 45°
           </li>
           <li className="flex items-center gap-1">
-            <GrooveIcon active className="h-4 w-4" /> شیار: خط‌چین کهربایی داخل قطعه
+            <svg viewBox="0 0 28 18" className="h-4 w-7" aria-hidden="true">
+              <line x1="1" y1="9" x2="27" y2="9" stroke="#000" strokeWidth="2" strokeDasharray="4,4" />
+            </svg>
+            شیار: خط‌چین مشکی، ۱۰ mm داخل قطعه
           </li>
           <li className="flex items-center gap-1">
-            <span className="inline-block h-3.5 w-5 rounded-sm bg-slate-200 ring-1 ring-slate-300" aria-hidden /> <span className="font-bold">هاشور ضایعات</span> / باقی‌ماندهٔ ورق
+            <svg viewBox="0 0 24 16" className="h-4 w-6" aria-hidden="true">
+              <rect x="1" y="1" width="22" height="14" fill="#fff" stroke="#000" />
+              <path d="M3 14 12 2 M11 14 20 2" stroke="#555" strokeWidth="1.5" />
+            </svg>
+            <span className="font-bold">هاشور ضایعات</span> / باقی‌ماندهٔ ورق
           </li>
         </ul>
 
@@ -446,10 +423,10 @@ export default function CuttingMap({ sheets, stock, parts, forPrint = false }: C
               <span className="tabular-nums text-xs text-slate-500" dir="ltr">
                 {stock.length} × {stock.width} mm
               </span>
-              <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">
+              <span className="rounded-md bg-white px-2 py-0.5 text-xs font-bold text-black ring-1 ring-black">
                 بهره‌وری {faDecimal.format(sheet.utilizationPercentage)}٪
               </span>
-              <span className="rounded-md bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-700 ring-1 ring-rose-200">
+              <span className="rounded-md bg-white px-2 py-0.5 text-xs font-bold text-black ring-1 ring-black">
                 پرت {faDecimal.format(sheet.wastePercentage)}٪
               </span>
               <span className="ms-auto text-xs font-medium text-slate-500">
