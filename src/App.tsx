@@ -410,7 +410,7 @@ export default function App() {
                   <span className="text-slate-500"> — </span>
                   <span dir="ltr" className="text-slate-500">Edge Banding</span>
                   <br />
-                  <span className="text-slate-600">در پیش‌نمایش ردیف خط سبزآبی دارد؛ در نقشهٔ چاپی سیاه‌وسفید با خط ممتد مشکی روی لبه نشان داده می‌شود.</span>
+                  <span className="text-slate-600">در پیش‌نمایش ردیف خط سبزآبی دارد؛ در نقشهٔ چاپی سیاه‌وسفید با برچسب خوانای «PVC» در امتداد همان لبه نشان داده می‌شود.</span>
                 </p>
               </li>
               <li className="flex gap-3">
@@ -436,7 +436,7 @@ export default function App() {
                   <strong className="text-amber-800">شیار</strong>
                   <span className="text-slate-500"> — برای جاگذاری ورق ۳ میلی‌متری (پشت‌بند)</span>
                   <br />
-                  <span className="text-slate-600">در پیش‌نمایش خط‌چین کهربایی است؛ در نقشهٔ سیاه‌وسفید خط‌چین مشکی را ۱۰ میلی‌متر داخل قطعه می‌بینید.</span>
+                  <span className="text-slate-600">در پیش‌نمایش خط‌چین کهربایی است؛ در نقشهٔ سیاه‌وسفید خط‌چین ضخیم مشکی را ۱۰ میلی‌متر داخل قطعه و ۱۰ میلی‌متر دور از گوشه‌ها می‌بینید.</span>
                 </p>
               </li>
             </ul>

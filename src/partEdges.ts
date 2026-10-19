@@ -73,3 +73,6 @@ export function getPartEdgeSides(part: EdgeFlags, isRotated: boolean): PartEdgeS
 
 /** فاصلهٔ خط شیار از لبهٔ قطعه (میلی‌متر) — در نقشه، DXF و لیبل یکسان است */
 export const GROOVE_INSET_MM = 10;
+
+/** فاصلهٔ انتهای خط شیار از گوشه‌های قطعه (میلی‌متر) — خط شیار تا لبه نمی‌رسد */
+export const GROOVE_END_GAP_MM = 10;

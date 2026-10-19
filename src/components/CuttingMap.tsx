@@ -5,7 +5,7 @@ import type {
   StockSheet,
 } from '../algorithm';
 import type { CutPart } from '../types/part';
-import { GROOVE_INSET_MM, sidesForFlags, type PartSide as Side } from '../partEdges';
+import { GROOVE_END_GAP_MM, GROOVE_INSET_MM, sidesForFlags, type PartSide as Side } from '../partEdges';
 
 /**
  * A-Cut 2Dpro — فاز ۳: نقشهٔ برش (Cutting Map)
@@ -17,9 +17,10 @@ import { GROOVE_INSET_MM, sidesForFlags, type PartSide as Side } from '../partEd
  * قرارداد رندر سیاه‌وسفید علائم کارگاهی برای هر قطعه از روی ردیف متناظر
  * همان قطعه (`id`) در جدول خوانده می‌شود:
  *  - بدنهٔ قطعه: سفید با حاشیهٔ مشکی
- *  - نوار: خط ممتد مشکی روی لبه
+ *  - نوار: برچسب «PVC» در فاصلهٔ کوتاه از لبه و در امتداد آن
  *  - فارسی: خط ممتد مشکی + مثلث پر + برچسب «45°»
- *  - شیار: خط‌چین مشکی در فاصلهٔ ۱۰ میلی‌متر داخل قطعه، موازی لبه
+ *  - شیار: خط‌چین ضخیم مشکی در فاصلهٔ ۱۰ میلی‌متر داخل قطعه، موازی لبه
+ *    و با فاصلهٔ ۱۰ میلی‌متر از گوشه‌های قطعه
  *
  * نگاشت لبه‌ها هنگام چرخش: فلگ‌های «طول» یعنی دو لبهٔ موازی با محور طول قطعه.
  * اگر قطعه روی نقشه ۹۰ درجه چرخیده باشد (`isRotated`)، محور طول آن عمودی
@@ -66,13 +67,13 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
   const grooveSides = source ? sidesForFlags(source.grooveLength, source.grooveWidth, isRotated) : [];
 
   /* ضخامت‌ها (بر حسب میلی‌متر نقشه، مقیاس‌شده نسبت به اندازهٔ ورق) */
-  const bandStroke = 4 * s;
   const farsiStroke = 2.6 * s;
-  const grooveStroke = 2 * s;
+  /** خط شیار ضخیم و پرکنتراست تا روی پرینتر سیاه‌وسفید محو نشود */
+  const grooveStroke = Math.max(2.5 * s, 1.6);
+  const grooveDash = `${8 * s} ${4 * s}`;
 
   /** مختصات خط موازی یک لبه با فاصلهٔ inset به داخل قطعه */
-  const lineFor = (side: Side, inset: number) => {
-    const trim = 1 * s;
+  const lineFor = (side: Side, inset: number, trim: number = 1 * s) => {
     switch (side) {
       case 'top':
         return { x1: x + trim, y1: y + inset, x2: x + w - trim, y2: y + inset };
@@ -85,14 +86,12 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
     }
   };
 
-  /* فاصلهٔ داخلی هر علامت؛ اگر چند علامت روی یک لبه باشند پشت سر هم می‌نشینند */
-  const bandInset = bandStroke / 2 + 0.5 * s;
-  const farsiInsetFor = (side: Side) =>
-    bandSides.includes(side)
-      ? bandInset + bandStroke / 2 + farsiStroke / 2 + 1.4 * s
-      : farsiStroke / 2 + 0.5 * s;
+  /* فاصلهٔ داخلی خط فارسی از لبه (برچسب PVC جداگانه محاسبه می‌شود) */
+  const farsiInsetFor = (_side: Side) => farsiStroke / 2 + 0.5 * s;
   /** شیار در فاصلهٔ واقعی ۱۰ میلی‌متر از لبه است؛ در قطعات باریک رندر نمی‌شود. */
   const grooveInset = GROOVE_INSET_MM;
+  /** خط شیار ۱۰ میلی‌متر از هر گوشه فاصله می‌گیرد (مطابق قرارداد کارگاهی). */
+  const grooveEndGap = GROOVE_END_GAP_MM;
 
   /** نشانگر فارسی: مثلث قائم‌الزاویهٔ پر + برچسب 45° در میانهٔ لبه */
   const renderFarsiMarker = (side: Side) => {
@@ -154,6 +153,109 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
           45°
         </text>
       </g>
+    );
+  };
+
+  /**
+   * جای خط ضخیم نوار: کلمهٔ «PVC» با فونت خوانا و در امتداد همان لبه.
+   * متن در فاصلهٔ ۳٫۵ میلی‌متری از لبه می‌نشیند؛ اگر خط فارسی یا شیار آن نوار را
+   * اشغال کرده باشد، اولین فضای خالی بعد از آن‌ها انتخاب می‌شود تا هیچ خطی روی
+   * حروف نیفتد. روی لبهٔ عمودی متن ۹۰ درجه می‌چرخد تا خوانا بماند.
+   * در قطعاتی که این فاصله برای متن کافی نیست، یک خط نازک جای برچسب را می‌گیرد
+   * (اطلاعات نوار هرگز گم نمی‌شود) و هالهٔ سفید دور حروف هم متن را روی پرینت
+   * سیاه‌وسفید از خطوط اطراف جدا می‌کند.
+   */
+  const renderPvcLabel = (side: Side) => {
+    const horizontal = side === 'top' || side === 'bottom';
+    const edgeLength = horizontal ? w : h;
+    const depth = horizontal ? h : w;
+    if (edgeLength < 18 || depth < 12) return null;
+
+    // اندازهٔ متن: روی A4 چاپی خوانا بماند (حدود ۷pt) ولی از خطوط کارگاهی بزرگ‌تر نشود
+    const font = Math.min(9 * s, edgeLength / 7, depth / 5.5, 22);
+
+    // بازه‌های اشغال‌شده داخل قطعه: خط فارسی و خط شیار (با حاشیهٔ امن)
+    const occupied: [number, number][] = [];
+    if (farsiSides.includes(side)) {
+      const center = farsiInsetFor(side);
+      occupied.push([center - farsiStroke / 2 - 1.2, center + farsiStroke / 2 + 1.2]);
+    }
+    if (grooveSides.includes(side) && grooveInset < depth / 2) {
+      occupied.push([grooveInset - grooveStroke / 2 - 1.2, grooveInset + grooveStroke / 2 + 1.2]);
+    }
+    occupied.sort((a, b) => a[0] - b[0]);
+
+    // اولین نوار خالیِ به‌اندازهٔ کافی، از ۳٫۵ میلی‌متری لبه به سمت داخل
+    let bandStart: number | null = null;
+    let cursor = 3.5;
+    for (const [start, end] of occupied) {
+      if (cursor + font <= start) {
+        bandStart = cursor;
+        break;
+      }
+      cursor = Math.max(cursor, end);
+    }
+    // متن نباید به برچسب مرکز قطعه برسد؛ در غیر این صورت خط نازک جای آن را می‌گیرد
+    if (bandStart === null && cursor + font <= depth * 0.45) bandStart = cursor;
+
+    if (bandStart === null || font < 1.2) {
+      // قطعهٔ خیلی کوچک: همان خط نازک، ولی بدون ضخامت قبلی
+      const l = lineFor(side, 2 * s);
+      return (
+        <line
+          key={`band-${side}`}
+          {...l}
+          stroke={COLOR.band}
+          strokeWidth={Math.max(1.6 * s, 1)}
+        />
+      );
+    }
+
+    // ۳۰٪ یا ۷۰٪ طول لبه تا با مثلث و برچسب ۴۵° وسط لبه تلاقی نکند
+    const alongFraction =
+      side === 'top' || side === 'left' ? 0.3 : 0.7;
+
+    const common = {
+      textAnchor: 'middle' as const,
+      dominantBaseline: 'middle' as const,
+      fontSize: font,
+      fontWeight: 800 as const,
+      fill: COLOR.band,
+      stroke: '#ffffff',
+      strokeWidth: 1.5 * s,
+      strokeLinejoin: 'round' as const,
+      paintOrder: 'stroke',
+      style: {
+        direction: 'ltr' as const,
+        fontFamily: 'Arial, "Vazirmatn", sans-serif',
+      },
+    };
+
+    if (horizontal) {
+      return (
+        <text
+          key={`pvc-${side}`}
+          x={x + w * alongFraction}
+          y={side === 'top' ? y + bandStart + font * 0.55 : y + h - bandStart - font * 0.55}
+          {...common}
+        >
+          PVC
+        </text>
+      );
+    }
+
+    return (
+      <text
+        key={`pvc-${side}`}
+        x={0}
+        y={0}
+        transform={`translate(${
+          side === 'left' ? x + bandStart + font * 0.55 : x + w - bandStart - font * 0.55
+        } ${y + h * alongFraction}) rotate(${side === 'left' ? 90 : -90})`}
+        {...common}
+      >
+        PVC
+      </text>
     );
   };
 
@@ -246,7 +348,7 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
   };
 
   const flagsSummary = [
-    bandSides.length > 0 && 'نوار',
+    bandSides.length > 0 && 'نوار PVC',
     farsiSides.length > 0 && 'فارسی ۴۵°',
     grooveSides.length > 0 && 'شیار',
   ]
@@ -270,26 +372,22 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
         strokeWidth={1.8 * s}
       />
 
-      {/* شیار: خط‌چین مشکی، دقیقاً ۱۰ میلی‌متر داخل قطعه */}
+      {/* شیار: خط‌چین ضخیم مشکی، ۱۰ میلی‌متر داخل قطعه و ۱۰ میلی‌متر دور از گوشه‌ها */}
       {grooveSides.map((side) => {
         if (grooveInset >= Math.min(w, h) / 2) return null;
-        const l = lineFor(side, grooveInset);
+        const edgeLength = side === 'top' || side === 'bottom' ? w : h;
+        if (edgeLength <= grooveEndGap * 2) return null;
+        const l = lineFor(side, grooveInset, grooveEndGap);
         return (
           <line
             key={`groove-${side}`}
             {...l}
             stroke={COLOR.groove}
             strokeWidth={grooveStroke}
-            strokeDasharray="4,4"
-            strokeLinecap="round"
+            strokeDasharray={grooveDash}
+            strokeLinecap="butt"
           />
         );
-      })}
-
-      {/* نوار: خط ممتد مشکی روی لبه */}
-      {bandSides.map((side) => {
-        const l = lineFor(side, bandInset);
-        return <line key={`band-${side}`} {...l} stroke={COLOR.band} strokeWidth={bandStroke} />;
       })}
 
       {/* فارسی: خط ممتد مشکی روی لبه + مثلث پر و برچسب 45° */}
@@ -305,6 +403,9 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
         );
       })}
       {farsiSides.map(renderFarsiMarker)}
+
+      {/* نوار: برچسب خوانای PVC در امتداد لبه (بدون خط ضخیم روی لبه) */}
+      {bandSides.map(renderPvcLabel)}
 
       {renderLabel()}
     </g>
@@ -349,8 +450,14 @@ export default function CuttingMap({ sheets, stock, parts, forPrint = false }: C
 
         <ul className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold text-slate-700">
           <li className="flex items-center gap-1">
-            <span className="inline-block w-7 border-t-[4px] border-black" aria-hidden />
-            نوار: خط ممتد مشکی
+            <span
+              className="inline-flex h-4 w-7 items-center justify-center rounded border border-black text-[8px] font-black leading-none"
+              aria-hidden="true"
+              dir="ltr"
+            >
+              PVC
+            </span>
+            نوار: برچسب PVC کنار لبه
           </li>
           <li className="flex items-center gap-1">
             <svg viewBox="0 0 28 18" className="h-4 w-7" aria-hidden="true">
@@ -361,9 +468,9 @@ export default function CuttingMap({ sheets, stock, parts, forPrint = false }: C
           </li>
           <li className="flex items-center gap-1">
             <svg viewBox="0 0 28 18" className="h-4 w-7" aria-hidden="true">
-              <line x1="1" y1="9" x2="27" y2="9" stroke="#000" strokeWidth="2" strokeDasharray="4,4" />
+              <line x1="1" y1="9" x2="27" y2="9" stroke="#000" strokeWidth="2.4" strokeDasharray="5,2.5" />
             </svg>
-            شیار: خط‌چین مشکی، ۱۰ mm داخل قطعه
+            شیار: خط‌چین ضخیم، ۱۰ mm داخل قطعه
           </li>
           <li className="flex items-center gap-1">
             <svg viewBox="0 0 24 16" className="h-4 w-6" aria-hidden="true">

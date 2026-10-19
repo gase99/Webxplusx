@@ -10,7 +10,7 @@ import {
 import { downloadDxf } from '../exportDxf';
 import CuttingMap from './CuttingMap';
 import LabelSheet from './LabelSheet';
-import ControlSheet from './ControlSheet';
+import ControlSheet, { PrintPartsList } from './ControlSheet';
 
 const faNumber = new Intl.NumberFormat('fa-IR');
 const faDecimal = new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 2 });
@@ -63,8 +63,8 @@ export default function LayoutPanel({
   const resultParts = layoutState?.partsSnapshot ?? [];
   const resultRef = useRef<HTMLDivElement | null>(null);
   const isFirstResultRef = useRef(true);
-  /** حالت سند چاپی فعال: نقشه، لیبل یا برگهٔ کنترل (فاز ۴) */
-  const [printMode, setPrintMode] = useState<'map' | 'labels' | 'control' | null>(null);
+  /** حالت سند چاپی فعال: نقشه (همراه فهرست قطعات) یا لیبل (فاز ۴) */
+  const [printMode, setPrintMode] = useState<'map' | 'labels' | null>(null);
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [showJson, setShowJson] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -370,7 +370,7 @@ export default function LayoutPanel({
             </div>
           )}
 
-          {/* فاز ۴: نوار ابزار خروجی‌ها (نقشه / DXF / لیبل / برگه کنترل) */}
+          {/* فاز ۴: نوار ابزار خروجی‌ها (نقشه + فهرست قطعات / DXF / لیبل) */}
           {result.sheets.length > 0 && (
             <div className="mt-3 flex flex-wrap items-center gap-2 rounded-xl bg-slate-800 px-3 py-2.5">
               <span className="text-xs font-extrabold text-slate-200">خروجی‌ها:</span>
@@ -378,19 +378,14 @@ export default function LayoutPanel({
                 type="button"
                 onClick={() => setPrintMode('map')}
                 disabled={isStale}
-                title={isStale ? 'ابتدا دوباره محاسبه کنید' : 'چاپ نقشهٔ سیاه‌وسفید روی A4 افقی (قابل ذخیره به‌صورت PDF)'}
+                title={
+                  isStale
+                    ? 'ابتدا دوباره محاسبه کنید'
+                    : 'چاپ نقشهٔ سیاه‌وسفید + فهرست گروه‌بندی‌شدهٔ قطعات و فاکتور متریال روی A4 افقی (قابل ذخیره به‌صورت PDF)'
+                }
                 className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-slate-800 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                🖨️ پرینت نقشه (PDF)
-              </button>
-              <button
-                type="button"
-                onClick={() => setPrintMode('control')}
-                disabled={isStale}
-                title={isStale ? 'ابتدا دوباره محاسبه کنید' : 'چاپ برگهٔ کنترل تولید با مربع‌های تیک و فاکتور متریال'}
-                className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-slate-800 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                🧾 چاپ برگه کنترل
+                🖨️ چاپ نقشه و لیست قطعات
               </button>
               <button
                 type="button"
@@ -428,7 +423,7 @@ export default function LayoutPanel({
             <CuttingMap sheets={result.sheets} stock={result.stock} parts={resultParts} />
           )}
 
-          {/* برگه کنترل کارگاهی (قابل چاپ) — ورودی ۰/۱/۲ و هاشور ضایعات */}
+          {/* برگه کنترل روی‌صفحه — همان جدول در چاپ هم زیر نقشه می‌آید (گروه‌بندی‌شده) */}
           {result.sheets.length > 0 && (
             <ControlSheet result={result} parts={resultParts} />
           )}
@@ -501,13 +496,9 @@ export default function LayoutPanel({
         <div className="print-portal">
           {printMode === 'map' ? (
             <PrintMapDocument result={result} parts={resultParts} />
-          ) : printMode === 'labels' ? (
+          ) : (
             <div className="print-doc-labels">
               <LabelSheet placements={result.placements} parts={resultParts} />
-            </div>
-          ) : (
-            <div className="print-doc-control">
-              <ControlSheet result={result} parts={resultParts} forPrint />
             </div>
           )}
         </div>,
@@ -518,7 +509,8 @@ export default function LayoutPanel({
 }
 
 /**
- * سند چاپی نقشهٔ برش: سربرگ خلاصه + خود نقشه (بدون کنترل‌های تعاملی).
+ * سند چاپی نقشهٔ برش: سربرگ خلاصه + نقشه‌ها + فهرست گروه‌بندی‌شدهٔ قطعات
+ * و فاکتور متریال (بدون کنترل‌های تعاملی).
  * در CSS چاپ، این سند روی A4 افقی (Landscape) تنظیم شده است.
  */
 function PrintMapDocument({ result, parts }: { result: LayoutResult; parts: CutPart[] }) {
@@ -552,6 +544,8 @@ function PrintMapDocument({ result, parts }: { result: LayoutResult; parts: CutP
         </ul>
       </header>
       <CuttingMap sheets={result.sheets} stock={result.stock} parts={parts} forPrint />
+      {/* همان برگه چاپی: زیر همهٔ SVGهای نقشه، فهرست گروه‌بندی‌شده + فاکتور متریال */}
+      <PrintPartsList result={result} parts={parts} />
     </div>
   );
 }

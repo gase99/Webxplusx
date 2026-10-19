@@ -89,15 +89,11 @@ input[type="checkbox"] {
   }
 
   /* صفحه‌بندی اسناد چاپی با صفحات نام‌دار (در مرورگرهای کرومیوم) */
-  .print-doc-map,
-  .print-doc-control {
+  .print-doc-map {
     page: a4-landscape;
   }
   .print-doc-labels {
     page: a4-portrait;
-  }
-  .print-doc-control .control-sheet {
-    margin-top: 0 !important;
   }
   @page a4-landscape {
     size: A4 landscape;
@@ -157,6 +153,40 @@ input[type="checkbox"] {
     display: table-header-group;
   }
   .control-sheet-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* جدول گروه‌بندی‌شدهٔ فهرست قطعات در سند چاپی نقشه (۸ ستون) */
+  .control-sheet-table--grouped th:nth-child(1),
+  .control-sheet-table--grouped td:nth-child(1) { width: 9mm; }
+  .control-sheet-table--grouped th:nth-child(2),
+  .control-sheet-table--grouped td:nth-child(2) { width: 40mm; }
+  .control-sheet-table--grouped th:nth-child(3),
+  .control-sheet-table--grouped td:nth-child(3) { width: 26mm; }
+  .control-sheet-table--grouped th:nth-child(4),
+  .control-sheet-table--grouped td:nth-child(4) { width: 14mm; }
+  .control-sheet-table--grouped th:nth-child(5),
+  .control-sheet-table--grouped td:nth-child(5) { width: 14mm; }
+  .control-sheet-table--grouped th:nth-child(6),
+  .control-sheet-table--grouped td:nth-child(6) { width: 58mm; }
+  .control-sheet-table--grouped th:nth-child(7),
+  .control-sheet-table--grouped td:nth-child(7) { width: 96mm; }
+  .control-sheet-table--grouped th:nth-child(8),
+  .control-sheet-table--grouped td:nth-child(8) { width: 18mm; }
+
+  /* فهرست قطعات زیر نقشه: اگر طولانی شد، صفحه‌به‌صفحه ادامه پیدا کند */
+  .print-parts-section {
+    margin-top: 6mm !important;
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+  .print-parts-section > div:first-child,
+  .print-parts-section > p {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  .print-parts-section .control-sheet-table tr {
     break-inside: avoid;
     page-break-inside: avoid;
   }
