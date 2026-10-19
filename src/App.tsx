@@ -324,13 +324,13 @@ export default function App() {
           <StatCard
             title="نوار لبه (تقریبی)"
             value={`${faDecimal.format(stats.bandMeters)} m`}
-            hint="بر مبنای دو لبهٔ مقابل"
+            hint="بر مبنای انتخاب ۰/۱/۲ لبه"
             accent="text-teal-700"
           />
           <StatCard
             title="لبهٔ فارسی ۴۵°"
             value={faNumber.format(stats.farsiEdges)}
-            hint="لبه — روی نقشه: خط‌چین قرمز + 45°"
+            hint="لبه — روی نقشه: خط ممتد مشکی + 45°"
             accent="text-rose-700"
           />
           <StatCard
@@ -394,7 +394,7 @@ export default function App() {
             <PartPreview part={activePart} />
             <p className="mt-1 text-center text-xs leading-6 text-slate-500">
               در <strong className="text-slate-700">فاز ۳ (نقشهٔ برش)</strong> لبه‌های فارسی دقیقاً
-              رسم می‌شوند: <span className="font-bold text-rose-700">خط‌چین قرمز + مثلث + برچسب 45°</span>
+              رسم می‌شوند: <span className="font-bold text-slate-900">خط ممتد مشکی + مثلث پر + برچسب 45°</span>
             </p>
           </div>
 
@@ -410,7 +410,7 @@ export default function App() {
                   <span className="text-slate-500"> — </span>
                   <span dir="ltr" className="text-slate-500">Edge Banding</span>
                   <br />
-                  <span className="text-slate-600">روی پیش‌نمایش با خط ضخیم سبزآبی روی لبه مشخص می‌شود.</span>
+                  <span className="text-slate-600">در پیش‌نمایش ردیف خط سبزآبی دارد؛ در نقشهٔ چاپی سیاه‌وسفید با خط ممتد مشکی روی لبه نشان داده می‌شود.</span>
                 </p>
               </li>
               <li className="flex gap-3">
@@ -423,8 +423,8 @@ export default function App() {
                   <span dir="ltr" className="text-slate-500">Miter Cut</span>
                   <br />
                   <span className="text-slate-600">
-                    کنار چک‌باکس آن آیکون مثلث/خط مورب هست؛ روی نقشهٔ برش با{' '}
-                    <strong className="text-rose-700">خط‌چین قرمز، مثلث و برچسب 45°</strong> رندر می‌شود تا اپراتور متوجه شود.
+                    کنار ورودی آن آیکون مثلث/خط مورب هست؛ روی نقشهٔ برش با خط ممتد مشکی، مثلث پر و برچسب{' '}
+                    <strong className="text-slate-900">45°</strong> رندر می‌شود تا اپراتور متوجه شود.
                   </span>
                 </p>
               </li>
@@ -436,13 +436,13 @@ export default function App() {
                   <strong className="text-amber-800">شیار</strong>
                   <span className="text-slate-500"> — برای جاگذاری ورق ۳ میلی‌متری (پشت‌بند)</span>
                   <br />
-                  <span className="text-slate-600">روی پیش‌نمایش با خط‌چین کهربایی موازی لبه نشان داده می‌شود.</span>
+                  <span className="text-slate-600">در پیش‌نمایش خط‌چین کهربایی است؛ در نقشهٔ سیاه‌وسفید خط‌چین مشکی را ۱۰ میلی‌متر داخل قطعه می‌بینید.</span>
                 </p>
               </li>
             </ul>
             <p className="mt-4 rounded-lg bg-slate-50 px-3 py-2 text-xs leading-6 text-slate-500 ring-1 ring-slate-200">
-              قرارداد جهت‌ها: تیک «طول» یعنی دو لبهٔ موازی با جهت طول (بالا و پایین) و تیک «عرض» یعنی دو
-              لبهٔ موازی با جهت عرض (چپ و راست). متراژهای خلاصه نیز بر همین مبنا و تقریبی‌اند.
+              مقدار هر محور: ۰ بدون عملیات، ۱ یک لبه و ۲ هر دو لبهٔ مقابل است. «طول» لبه‌های موازی
+              با طول قطعه و «عرض» لبه‌های موازی با عرض را مشخص می‌کند.
             </p>
           </div>
         </section>

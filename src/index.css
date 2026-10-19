@@ -69,10 +69,11 @@ input[type="checkbox"] {
 }
 
 @media print {
-  /* رنگ‌ها در چاپ دقیقاً همان‌طور که روی صفحه‌اند بیایند
-     (قرمز فارسی، سبزآبی نوار، کهربایی شیار، پس‌زمینهٔ قطعات) */
+  /* نقشهٔ سیاه‌وسفید، هاشورها و مربع‌های کنترل در خروجی چاپ حفظ شوند. */
   .print-portal,
-  .print-portal * {
+  .print-portal *,
+  .control-sheet,
+  .control-sheet * {
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
@@ -88,11 +89,15 @@ input[type="checkbox"] {
   }
 
   /* صفحه‌بندی اسناد چاپی با صفحات نام‌دار (در مرورگرهای کرومیوم) */
-  .print-doc-map {
+  .print-doc-map,
+  .print-doc-control {
     page: a4-landscape;
   }
   .print-doc-labels {
     page: a4-portrait;
+  }
+  .print-doc-control .control-sheet {
+    margin-top: 0 !important;
   }
   @page a4-landscape {
     size: A4 landscape;
@@ -111,9 +116,61 @@ input[type="checkbox"] {
     break-inside: avoid;
     box-shadow: none !important;
   }
-  /* در سند چاپی نیازی به اسکرول افقی نقشه نیست */
-  .print-portal .table-scroll {
+  /* در سند چاپی نیازی به اسکرول افقی نقشه یا برگهٔ کنترل نیست */
+  .print-portal .table-scroll,
+  .control-sheet-scroll {
     overflow: visible !important;
+  }
+
+  .control-sheet-table {
+    width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed;
+    font-size: 8pt;
+  }
+  .control-sheet-table th,
+  .control-sheet-table td {
+    min-width: 0 !important;
+    padding: 1.5mm 1mm !important;
+  }
+  .control-sheet-table th:nth-child(1),
+  .control-sheet-table td:nth-child(1) { width: 9mm; }
+  .control-sheet-table th:nth-child(2),
+  .control-sheet-table td:nth-child(2) { width: 18mm; }
+  .control-sheet-table th:nth-child(3),
+  .control-sheet-table td:nth-child(3) { width: 32mm; }
+  .control-sheet-table th:nth-child(4),
+  .control-sheet-table td:nth-child(4),
+  .control-sheet-table th:nth-child(5),
+  .control-sheet-table td:nth-child(5) { width: 21mm; }
+  .control-sheet-table th:nth-child(6),
+  .control-sheet-table td:nth-child(6) { width: 12mm; }
+  .control-sheet-table th:nth-child(7),
+  .control-sheet-table td:nth-child(7) { width: 24mm; }
+  .control-sheet-table th:nth-child(8),
+  .control-sheet-table td:nth-child(8) { width: 14mm; }
+  .control-sheet-table th:nth-child(9),
+  .control-sheet-table td:nth-child(9) { width: 105mm; }
+  .control-sheet-table th:nth-child(10),
+  .control-sheet-table td:nth-child(10) { width: 18mm; }
+  .control-sheet-table thead {
+    display: table-header-group;
+  }
+  .control-sheet-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .control-sheet-check {
+    width: 8mm !important;
+    height: 8mm !important;
+    border-width: 1.2pt !important;
+  }
+  .control-sheet-materials {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .control-sheet-material-value {
+    font-size: 18pt !important;
   }
 
   /* صفحات لیبل دقیقاً روی مرز صفحهٔ A4 تمام شوند */

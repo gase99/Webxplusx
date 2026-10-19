@@ -122,6 +122,52 @@ export function isValidPart(p: CutPart): boolean {
   return p.length > 0 && p.width > 0 && p.qty > 0;
 }
 
+export interface MaterialSummary {
+  /** مجموع طول نوار لبه بر حسب متر */
+  bandMeters: number;
+  /** مجموع طول لبه‌های فارسی ۴۵ درجه بر حسب متر */
+  farsiMeters: number;
+  /** مجموع طول شیار بر حسب متر */
+  grooveMeters: number;
+}
+
+/**
+ * برآورد متراژ مواد مصرفی از روی تعداد لبه‌های انتخاب‌شده (۰/۱/۲)،
+ * ابعاد و تعداد قطعات. مقدار ۱ یک لبه و مقدار ۲ هر دو لبهٔ مقابل است.
+ * ردیف‌های ناقص یا دارای مقادیر نامعتبر در جمع لحاظ نمی‌شوند.
+ */
+export function calculateMaterialSummary(parts: readonly CutPart[]): MaterialSummary {
+  const summary: MaterialSummary = { bandMeters: 0, farsiMeters: 0, grooveMeters: 0 };
+
+  for (const part of parts) {
+    const { length, width, qty } = part;
+    if (
+      !Number.isFinite(length) ||
+      !Number.isFinite(width) ||
+      !Number.isFinite(qty) ||
+      length <= 0 ||
+      width <= 0 ||
+      qty <= 0
+    ) {
+      continue;
+    }
+
+    const lengthMeters = (length * qty) / 1000;
+    const widthMeters = (width * qty) / 1000;
+    summary.bandMeters +=
+      normalizeEdgeCount(part.bandLength) * lengthMeters +
+      normalizeEdgeCount(part.bandWidth) * widthMeters;
+    summary.farsiMeters +=
+      normalizeEdgeCount(part.farsiLength) * lengthMeters +
+      normalizeEdgeCount(part.farsiWidth) * widthMeters;
+    summary.grooveMeters +=
+      normalizeEdgeCount(part.grooveLength) * lengthMeters +
+      normalizeEdgeCount(part.grooveWidth) * widthMeters;
+  }
+
+  return summary;
+}
+
 /** دادهٔ نمونه برای نمایش و تست سریع جدول */
 export function createSampleParts(): CutPart[] {
   return [
