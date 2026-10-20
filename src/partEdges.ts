@@ -71,8 +71,14 @@ export function getPartEdgeSides(part: EdgeFlags, isRotated: boolean): PartEdgeS
   };
 }
 
-/** فاصلهٔ خط شیار از لبهٔ قطعه (میلی‌متر) — در نقشه، DXF و لیبل یکسان است */
-export const GROOVE_INSET_MM = 10;
+/**
+ * فاصلهٔ خط ممتد راهنمای نوار از لبهٔ قطعه روی نقشه (میلی‌متر).
+ * اندازهٔ هر ضلع هم در وسط همین نوار (بین لبه و خط) نوشته می‌شود.
+ */
+export const BAND_INSET_MM = 50;
 
-/** فاصلهٔ انتهای خط شیار از گوشه‌های قطعه (میلی‌متر) — خط شیار تا لبه نمی‌رسد */
-export const GROOVE_END_GAP_MM = 10;
+/** فاصلهٔ خط شیار از لبهٔ قطعه (میلی‌متر) — در نقشه و DXF یکسان است */
+export const GROOVE_INSET_MM = 20;
+
+/** فاصلهٔ انتهای خط شیار از گوشه‌های قطعه (میلی‌متر) — صفر: خط تا لبه‌ها کشیده می‌شود */
+export const GROOVE_END_GAP_MM = 0;

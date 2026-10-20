@@ -381,7 +381,7 @@ export default function LayoutPanel({
                 title={
                   isStale
                     ? 'ابتدا دوباره محاسبه کنید'
-                    : 'چاپ نقشهٔ سیاه‌وسفید + فهرست گروه‌بندی‌شدهٔ قطعات و فاکتور متریال روی A4 افقی (قابل ذخیره به‌صورت PDF)'
+                    : 'چاپ نقشهٔ سیاه‌وسفید + فهرست گروه‌بندی‌شدهٔ قطعات و فاکتور متریال، همه در یک برگهٔ A4 عمودی (قابل ذخیره به‌صورت PDF)'
                 }
                 className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-slate-800 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -511,7 +511,7 @@ export default function LayoutPanel({
 /**
  * سند چاپی نقشهٔ برش: سربرگ خلاصه + نقشه‌ها + فهرست گروه‌بندی‌شدهٔ قطعات
  * و فاکتور متریال (بدون کنترل‌های تعاملی).
- * در CSS چاپ، این سند روی A4 افقی (Landscape) تنظیم شده است.
+ * در CSS چاپ، این سند روی یک برگهٔ A4 عمودی و فشرده تنظیم شده است.
  */
 function PrintMapDocument({ result, parts }: { result: LayoutResult; parts: CutPart[] }) {
   const today = new Date().toLocaleDateString('fa-IR');
