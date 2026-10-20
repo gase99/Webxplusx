@@ -88,23 +88,28 @@ input[type="checkbox"] {
     background: #fff !important;
   }
 
+  @page {
+    size: A4;
+    margin: 5mm;
+  }
+
   /* صفحه‌بندی اسناد چاپی با صفحات نام‌دار (در مرورگرهای کرومیوم) */
   .print-doc-map {
-    page: a4-landscape;
+    page: a4;
+    zoom: 0.72;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
   .print-doc-labels {
     page: a4-portrait;
   }
   @page a4-landscape {
-    size: A4 landscape;
-    margin: 10mm;
+    size: A4;
+    margin: 5mm;
   }
   @page a4-portrait {
     size: A4 portrait;
     margin: 8mm;
-  }
-  @page {
-    margin: 10mm;
   }
 
   /* هر ورق خام روی نقشه یک‌تکه بماند و وسط صفحه نشکند */
@@ -122,7 +127,7 @@ input[type="checkbox"] {
     width: 100% !important;
     min-width: 0 !important;
     table-layout: fixed;
-    font-size: 8pt;
+    font-size: 7pt;
   }
   .control-sheet-table th,
   .control-sheet-table td {
@@ -177,7 +182,7 @@ input[type="checkbox"] {
 
   /* فهرست قطعات زیر نقشه: اگر طولانی شد، صفحه‌به‌صفحه ادامه پیدا کند */
   .print-parts-section {
-    margin-top: 6mm !important;
+    margin-top: 2mm !important;
     break-inside: auto;
     page-break-inside: auto;
   }

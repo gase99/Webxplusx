@@ -5,7 +5,7 @@ import type {
   StockSheet,
 } from '../algorithm';
 import type { CutPart } from '../types/part';
-import { GROOVE_END_GAP_MM, GROOVE_INSET_MM, sidesForFlags, type PartSide as Side } from '../partEdges';
+import { sidesForFlags, type PartSide as Side } from '../partEdges';
 
 /**
  * A-Cut 2Dpro — فاز ۳: نقشهٔ برش (Cutting Map)
@@ -38,7 +38,6 @@ const COLOR = {
   band: '#000000',
   farsi: '#000000',
   farsiFill: '#000000',
-  groove: '#000000',
   partFill: '#ffffff',
   partStroke: '#000000',
   text: '#000000',
@@ -68,9 +67,6 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
 
   /* ضخامت‌ها (بر حسب میلی‌متر نقشه، مقیاس‌شده نسبت به اندازهٔ ورق) */
   const farsiStroke = 2.6 * s;
-  /** خط شیار ضخیم و پرکنتراست تا روی پرینتر سیاه‌وسفید محو نشود */
-  const grooveStroke = Math.max(2.5 * s, 1.6);
-  const grooveDash = `${8 * s} ${4 * s}`;
 
   /** مختصات خط موازی یک لبه با فاصلهٔ inset به داخل قطعه */
   const lineFor = (side: Side, inset: number, trim: number = 1 * s) => {
@@ -88,10 +84,6 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
 
   /* فاصلهٔ داخلی خط فارسی از لبه (برچسب PVC جداگانه محاسبه می‌شود) */
   const farsiInsetFor = (_side: Side) => farsiStroke / 2 + 0.5 * s;
-  /** شیار در فاصلهٔ واقعی ۱۰ میلی‌متر از لبه است؛ در قطعات باریک رندر نمی‌شود. */
-  const grooveInset = GROOVE_INSET_MM;
-  /** خط شیار ۱۰ میلی‌متر از هر گوشه فاصله می‌گیرد (مطابق قرارداد کارگاهی). */
-  const grooveEndGap = GROOVE_END_GAP_MM;
 
   /** نشانگر فارسی: مثلث قائم‌الزاویهٔ پر + برچسب 45° در میانهٔ لبه */
   const renderFarsiMarker = (side: Side) => {
@@ -179,9 +171,6 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
     if (farsiSides.includes(side)) {
       const center = farsiInsetFor(side);
       occupied.push([center - farsiStroke / 2 - 1.2, center + farsiStroke / 2 + 1.2]);
-    }
-    if (grooveSides.includes(side) && grooveInset < depth / 2) {
-      occupied.push([grooveInset - grooveStroke / 2 - 1.2, grooveInset + grooveStroke / 2 + 1.2]);
     }
     occupied.sort((a, b) => a[0] - b[0]);
 
@@ -372,21 +361,22 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
         strokeWidth={1.8 * s}
       />
 
-      {/* شیار: خط‌چین ضخیم مشکی، ۱۰ میلی‌متر داخل قطعه و ۱۰ میلی‌متر دور از گوشه‌ها */}
+      {/* شیار: برچسب خوانا در فاصلهٔ ۴ میلی‌متری داخل لبهٔ دارای شیار */}
       {grooveSides.map((side) => {
-        if (grooveInset >= Math.min(w, h) / 2) return null;
-        const edgeLength = side === 'top' || side === 'bottom' ? w : h;
-        if (edgeLength <= grooveEndGap * 2) return null;
-        const l = lineFor(side, grooveInset, grooveEndGap);
+        const horizontal = side === 'top' || side === 'bottom';
+        const edgeLength = horizontal ? w : h;
+        const depth = horizontal ? h : w;
+        const fontSize = Math.min(7 * s, edgeLength / 8, depth / 3);
+        if (fontSize < 2) return null;
+        const position = horizontal
+          ? { x: cx, y: side === 'top' ? y + 4 : y + h - 4, transform: undefined }
+          : { x: 0, y: 0, transform: `translate(${side === 'left' ? x + 4 : x + w - 4} ${cy}) rotate(${side === 'left' ? -90 : 90})` };
         return (
-          <line
-            key={`groove-${side}`}
-            {...l}
-            stroke={COLOR.groove}
-            strokeWidth={grooveStroke}
-            strokeDasharray={grooveDash}
-            strokeLinecap="butt"
-          />
+          <text key={`groove-label-${side}`} x={position.x} y={position.y}
+            transform={position.transform} textAnchor="middle" dominantBaseline="middle"
+            fontSize={fontSize} fontWeight="700" fill="#000000">
+            شیار ↩️
+          </text>
         );
       })}
 
