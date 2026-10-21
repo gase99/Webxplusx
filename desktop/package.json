@@ -1,0 +1,49 @@
+{
+  "name": "a-cut-2dpro-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A-Cut 2Dpro — نسخهٔ ویندوز (Electron / Portable EXE)",
+  "author": "A-Cut 2Dpro",
+  "license": "UNLICENSED",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win portable",
+    "pack:dir": "electron-builder --dir"
+  },
+  "devDependencies": {
+    "electron": "^38.4.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.acut.cut2dpro",
+    "productName": "A-Cut 2Dpro",
+    "copyright": "A-Cut 2Dpro",
+    "asar": true,
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.cjs",
+      "package.json",
+      "web/**/*",
+      "assets/**/*"
+    ],
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "portable": {
+      "artifactName": "A-Cut-2Dpro-${version}-portable.exe",
+      "requestExecutionLevel": "user"
+    }
+  }
+}

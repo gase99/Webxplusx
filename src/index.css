@@ -109,18 +109,32 @@ input[type="checkbox"] {
 
   /*
    * سند نقشه (سربرگ + نقشه‌ها + جدول قطعات + فاکتور متریال) باید یک‌جا و در
-   * یک برگهٔ A4 بماند. zoom کل سند را فشرده می‌کند و page-break-inside از
+   * یک برگهٔ A4 بماند. scale این سند را فشرده می‌کند و page-break-inside از
    * شکستن وسط کار جلوگیری می‌کند؛ مقادیر پایین‌تر (فونت/فاصله‌ها/ارتفاع نقشه)
    * هم فضای لازم برای جدول و فاکتور را آزاد می‌کنند.
    */
   .print-doc-map {
+    --print-scale: 0.85;
     page: a4;
-    zoom: 0.85;
+    /* zoom اندازهٔ چیدمان را هم کوچک می‌کند، پس صفحه‌بندی درست می‌ماند */
+    zoom: var(--print-scale);
     width: 100%;
+    transform-origin: top right;
     page-break-inside: avoid;
     break-inside: avoid;
     page-break-after: avoid;
     break-after: avoid;
+  }
+  /*
+   * مرورگرهایی که zoom را پشتیبانی نمی‌کنند: همان فشرده‌سازی با
+   * transform: scale() و عرض جبران‌شده تا محتوا از برگهٔ A4 بیرون نزند.
+   */
+  @supports not (zoom: 1) {
+    .print-doc-map {
+      transform: scale(var(--print-scale));
+      width: calc(100% / var(--print-scale));
+      max-width: none;
+    }
   }
   .print-portal {
     page-break-inside: avoid;

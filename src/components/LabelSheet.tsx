@@ -156,9 +156,10 @@ function PartLabel({ entry }: { entry: LabelEntry }) {
 /* ------------------------------------------------------------------ */
 
 function MiniPartDiagram({ placement, source }: { placement: PlacedPart; source: CutPart }) {
-  const W = 56;
-  const H = 42;
-  const margin = 5;
+  // حاشیهٔ بیرونی برای پیکان‌های کنار هر لبه
+  const W = 62;
+  const H = 46;
+  const margin = 11;
   const ratio = placement.width / Math.max(1, placement.height);
   let rw = W - margin * 2;
   let rh = rw / ratio;
@@ -170,31 +171,85 @@ function MiniPartDiagram({ placement, source }: { placement: PlacedPart; source:
   const y = (H - rh) / 2;
   const sides = getPartEdgeSides(source, placement.isRotated);
 
-  const lineFor = (side: PartSide, inset: number) => {
-    switch (side) {
-      case 'top':
-        return { x1: x, y1: y + inset, x2: x + rw, y2: y + inset };
-      case 'bottom':
-        return { x1: x, y1: y + rh - inset, x2: x + rw, y2: y + rh - inset };
-      case 'left':
-        return { x1: x + inset, y1: y, x2: x + inset, y2: y + rh };
-      case 'right':
-        return { x1: x + rw - inset, y1: y, x2: x + rw - inset, y2: y + rh };
-    }
+  const operations = [
+    { side: 'band' as const, sides: sides.band, label: 'نوار' },
+    { side: 'groove' as const, sides: sides.groove, label: 'شیار' },
+    { side: 'farsi' as const, sides: sides.farsi, label: '۴۵°' },
+  ].filter((operation) => operation.sides.length > 0);
+
+  const normal: Record<PartSide, [number, number]> = {
+    top: [0, -1],
+    bottom: [0, 1],
+    left: [-1, 0],
+    right: [1, 0],
   };
+  const tangent: Record<PartSide, [number, number]> = {
+    top: [1, 0],
+    bottom: [1, 0],
+    left: [0, 1],
+    right: [0, 1],
+  };
+  const anchor: Record<PartSide, number> = { top: 0.34, bottom: 0.66, left: 0.32, right: 0.68 };
+
+  const markers = operations.flatMap((operation) =>
+    operation.sides.map((side) => {
+      const horizontal = side === 'top' || side === 'bottom';
+      const [nx, ny] = normal[side];
+      const [tx, ty] = tangent[side];
+      const edgeLength = horizontal ? rw : rh;
+      const along = edgeLength * anchor[side];
+      const ax = horizontal ? x + along : side === 'left' ? x : x + rw;
+      const ay = horizontal ? (side === 'top' ? y : y + rh) : y + along;
+      const at = (outward: number, lateral = 0): [number, number] => [
+        ax + nx * outward + tx * lateral,
+        ay + ny * outward + ty * lateral,
+      ];
+      const gap = 0.8;
+      const arrowLen = 4.2;
+      const halfShaft = 0.9;
+      const halfHead = 2.2;
+      const headLen = 2.1;
+      const points = [
+        at(gap, 0),
+        at(gap + headLen, -halfHead),
+        at(gap + headLen, -halfShaft),
+        at(gap + arrowLen, -halfShaft),
+        at(gap + arrowLen, halfShaft),
+        at(gap + headLen, halfShaft),
+        at(gap + headLen, halfHead),
+      ]
+        .map(([px, py]) => `${px.toFixed(2)},${py.toFixed(2)}`)
+        .join(' ');
+      const [textX, textY] = at(gap + arrowLen + 3.2);
+
+      return (
+        <g key={`${operation.side}-${side}`}>
+          <polygon points={points} fill="#000000" />
+          <text
+            x={textX}
+            y={textY}
+            transform={horizontal ? undefined : `rotate(-90 ${textX.toFixed(2)} ${textY.toFixed(2)})`}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize="4.4"
+            fontWeight="700"
+            fill="#000000"
+            stroke="#ffffff"
+            strokeWidth="0.7"
+            paintOrder="stroke"
+            style={{ direction: 'rtl' }}
+          >
+            {operation.label}
+          </text>
+        </g>
+      );
+    }),
+  );
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '17mm', height: 'auto' }} aria-hidden="true">
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '20mm', height: 'auto' }} aria-hidden="true">
       <rect x={x} y={y} width={rw} height={rh} fill="#f8fafc" stroke="#64748b" strokeWidth="1.1" />
-      {sides.groove.map((side) => (
-        <line key={`g-${side}`} {...lineFor(side, 4)} stroke="#d97706" strokeWidth="1.6" strokeDasharray="4 2.4" />
-      ))}
-      {sides.band.map((side) => (
-        <line key={`b-${side}`} {...lineFor(side, 1.4)} stroke="#0d9488" strokeWidth="2.8" />
-      ))}
-      {sides.farsi.map((side) => (
-        <line key={`f-${side}`} {...lineFor(side, sides.band.includes(side) ? 3.6 : 1.2)} stroke="#dc2626" strokeWidth="2" strokeDasharray="5 2.6" />
-      ))}
+      {markers}
     </svg>
   );
 }

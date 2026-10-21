@@ -2,3 +2,22 @@ node_modules
 dist
 *.local
 .DS_Store
+
+# --- نسخهٔ ویندوز (Electron) ---
+desktop/node_modules
+desktop/web
+desktop/release
+desktop/dist
+
+# --- نسخهٔ اندروید (Capacitor) — خروجی‌های ساخت ---
+android/.gradle
+android/build
+android/app/build
+android/local.properties
+android/app/src/main/assets/public
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+*.apk
+*.aab
+*.keystore
+!android/app/debug.keystore
