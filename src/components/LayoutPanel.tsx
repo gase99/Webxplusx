@@ -8,6 +8,7 @@ import {
   type LayoutState,
 } from '../types/project';
 import { downloadDxf } from '../exportDxf';
+import { prefersPdfExport } from '../platform';
 import CuttingMap from './CuttingMap';
 import LabelSheet from './LabelSheet';
 import ControlSheet, { PrintPartsList } from './ControlSheet';
@@ -63,8 +64,15 @@ export default function LayoutPanel({
   const resultParts = layoutState?.partsSnapshot ?? [];
   const resultRef = useRef<HTMLDivElement | null>(null);
   const isFirstResultRef = useRef(true);
-  /** حالت سند چاپی فعال: نقشه (همراه فهرست قطعات) یا لیبل (فاز ۴) */
+  /** حالت سند چاپی فعال در دسکتاپ: نقشه (همراه فهرست قطعات) یا لیبل (فاز ۴) */
   const [printMode, setPrintMode] = useState<'map' | 'labels' | null>(null);
+  /** درخواست ساخت PDF — جایگزین چاپ روی موبایل/APK/PWA که window.print ندارد */
+  const [pdfRequest, setPdfRequest] = useState<'map' | 'labels' | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const printPortalRef = useRef<HTMLDivElement | null>(null);
+  /** موبایل/اپ بومی/PWA نصب‌شده ← خروجی PDF؛ مرورگر دسکتاپ ← چاپ مستقیم */
+  const prefersPdf = useMemo(() => prefersPdfExport(), []);
+  const pdfBusy = pdfRequest !== null;
   const [labelsOpen, setLabelsOpen] = useState(false);
   const [showJson, setShowJson] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -124,7 +132,7 @@ export default function LayoutPanel({
     if (result) resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [result]);
 
-  // وقتی حالت چاپ فعال شد: سند چاپی در Portal رندر شده؛ بعد از دو فریم چاپ را باز کن
+  // وقتی حالت چاپ فعال شد (فقط دسکتاپ): سند در Portal رندر شده؛ بعد از دو فریم چاپ را باز کن
   useEffect(() => {
     if (!printMode) return;
     document.documentElement.dataset.printMode = printMode;
@@ -137,6 +145,60 @@ export default function LayoutPanel({
       delete document.documentElement.dataset.printMode;
     };
   }, [printMode]);
+
+  // موبایل/APK/PWA: window.print کار نمی‌کند؛ همان سند Portal با حالت ضبط
+  // (data-pdf-capture) بیرون از دید و با عرض A4 چیده و به PDF تبدیل می‌شود.
+  useEffect(() => {
+    if (!pdfRequest || !result) return;
+    let cancelled = false;
+    const kind = pdfRequest;
+    document.documentElement.dataset.pdfCapture = kind;
+    const title = kind === 'map' ? 'نقشهٔ برش و فهرست قطعات' : 'لیبل قطعات';
+    const filename =
+      kind === 'map'
+        ? `ACut_map_${result.stock.length}x${result.stock.width}_${result.summary.sheetCount}sheets.pdf`
+        : `ACut_labels_${result.stock.length}x${result.stock.width}.pdf`;
+    void (async () => {
+      try {
+        // صبر برای چیدمان نهایی سند در Portal و آماده‌شدن فونت‌ها قبل از ضبط
+        await new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        );
+        await document.fonts?.ready;
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 60));
+        if (cancelled) return;
+        const portalEl = printPortalRef.current;
+        if (!portalEl) throw new Error('سند خروجی پیدا نشد');
+        // بارگذاری پویا: بستهٔ PDF فقط هنگام نیاز گرفته می‌شود
+        const { generateAndDeliverPdf } = await import('../exportPdf');
+        if (cancelled) return;
+        await generateAndDeliverPdf(portalEl, kind, filename, title);
+      } catch (err) {
+        console.error('[A-Cut 2Dpro] ساخت PDF ناموفق بود:', err);
+        if (!cancelled) {
+          setPdfError(
+            'ساخت فایل PDF ناموفق بود؛ لطفاً چند ثانیه صبر و دوباره تلاش کنید. اگر مشکل ادامه داشت، از نسخهٔ دسکتاپ چاپ بگیرید.',
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          delete document.documentElement.dataset.pdfCapture;
+          setPdfRequest(null);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+      delete document.documentElement.dataset.pdfCapture;
+    };
+  }, [pdfRequest, result]);
+
+  /** دکمه‌های خروجی: روی موبایل به PDF و روی دسکتاپ به چاپ مستقیم می‌روند */
+  const requestDocument = (kind: 'map' | 'labels') => {
+    setPdfError(null);
+    if (prefersPdf) setPdfRequest(kind);
+    else setPrintMode(kind);
+  };
 
   const handleDownloadDxf = () => {
     if (result) downloadDxf(result, resultParts);
@@ -376,16 +438,22 @@ export default function LayoutPanel({
               <span className="text-xs font-extrabold text-slate-200">خروجی‌ها:</span>
               <button
                 type="button"
-                onClick={() => setPrintMode('map')}
-                disabled={isStale}
+                onClick={() => requestDocument('map')}
+                disabled={isStale || pdfBusy}
                 title={
                   isStale
                     ? 'ابتدا دوباره محاسبه کنید'
-                    : 'چاپ نقشهٔ سیاه‌وسفید + فهرست گروه‌بندی‌شدهٔ قطعات و فاکتور متریال، همه در یک برگهٔ A4 عمودی (قابل ذخیره به‌صورت PDF)'
+                    : prefersPdf
+                      ? 'ساخت فایل PDF (یک برگهٔ A4 عمودی) از نقشهٔ سیاه‌وسفید + فهرست گروه‌بندی‌شدهٔ قطعات و فاکتور متریال — برای ذخیره، اشتراک‌گذاری و چاپ'
+                      : 'چاپ نقشهٔ سیاه‌وسفید + فهرست گروه‌بندی‌شدهٔ قطعات و فاکتور متریال، همه در یک برگهٔ A4 عمودی (قابل ذخیره به‌صورت PDF)'
                 }
                 className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-slate-800 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                🖨️ چاپ نقشه و لیست قطعات
+                {pdfRequest === 'map'
+                  ? '⏳ در حال ساخت PDF…'
+                  : prefersPdf
+                    ? '📄 دانلود PDF نقشه و لیست قطعات'
+                    : '🖨️ چاپ نقشه و لیست قطعات'}
               </button>
               <button
                 type="button"
@@ -398,12 +466,22 @@ export default function LayoutPanel({
               </button>
               <button
                 type="button"
-                onClick={() => setPrintMode('labels')}
-                disabled={isStale}
-                title={isStale ? 'ابتدا دوباره محاسبه کنید' : 'چاپ برچسب قطعات — شبکهٔ ۳×۵ روی A4'}
+                onClick={() => requestDocument('labels')}
+                disabled={isStale || pdfBusy}
+                title={
+                  isStale
+                    ? 'ابتدا دوباره محاسبه کنید'
+                    : prefersPdf
+                      ? 'ساخت فایل PDF برچسب قطعات — شبکهٔ ۳×۵ روی A4 با اندازهٔ واقعی، برای ذخیره/اشتراک‌گذاری و چاپ'
+                      : 'چاپ برچسب قطعات — شبکهٔ ۳×۵ روی A4'
+                }
                 className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-slate-800 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                🏷️ چاپ لیبل‌ها
+                {pdfRequest === 'labels'
+                  ? '⏳ در حال ساخت PDF…'
+                  : prefersPdf
+                    ? '📄 دانلود PDF لیبل‌ها'
+                    : '🏷️ چاپ لیبل‌ها'}
               </button>
               <button
                 type="button"
@@ -416,6 +494,19 @@ export default function LayoutPanel({
                 در DXF هر ورق کنار بعدی قرار می‌گیرد؛ کد هر قطعه (مثل S1-03) با لیبل چاپی‌اش یکی است.
               </span>
             </div>
+          )}
+
+          {/* در موبایل/نسخهٔ نصب‌شده چاپ مستقیم نیست؛ مسیر PDF برای کاربر توضیح داده شود */}
+          {result.sheets.length > 0 && prefersPdf && (
+            <p className="mt-1.5 text-[11px] leading-5 text-slate-400">
+              📄 چاپ مستقیم روی گوشی پشتیبانی نمی‌شود؛ دکمه‌های بالا فایل <b>PDF (A4)</b> می‌سازند
+              تا آن را ذخیره یا اشتراک‌گذاری کنید و از همان‌جا چاپ بگیرید.
+            </p>
+          )}
+          {pdfError && (
+            <p className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-xs font-medium text-rose-800 ring-1 ring-rose-200">
+              ⚠ {pdfError}
+            </p>
           )}
 
           {/* فاز ۳: نقشهٔ برش SVG روی همین خروجی placements/sheets — هاشور ضایعات = هاشور مورب پرت */}
@@ -440,11 +531,15 @@ export default function LayoutPanel({
                 </h3>
                 <button
                   type="button"
-                  onClick={() => setPrintMode('labels')}
-                  disabled={isStale}
+                  onClick={() => requestDocument('labels')}
+                  disabled={isStale || pdfBusy}
                   className="ms-auto rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
                 >
-                  🖨️ چاپ لیبل‌ها
+                  {pdfRequest === 'labels'
+                    ? '⏳ در حال ساخت PDF…'
+                    : prefersPdf
+                      ? '📄 دانلود PDF لیبل‌ها'
+                      : '🖨️ چاپ لیبل‌ها'}
                 </button>
               </div>
               <div className="table-scroll overflow-x-auto rounded-2xl bg-slate-200/70 p-3">
@@ -489,12 +584,16 @@ export default function LayoutPanel({
       )}
     </section>
 
-    {/* سند چاپی (فاز ۴): فقط در حالت چاپ از طریق Portal روی body دیده می‌شود */}
-    {printMode &&
+    {/*
+      سند خروجی (فاز ۴): از طریق Portal روی body رندر می‌شود و روی صفحه
+      دیده نمی‌شود — در دسکتاپ برای چاپ (printMode) و در موبایل برای ضبط
+      و تبدیل به PDF ‏(pdfRequest).
+    */}
+    {(printMode || pdfRequest) &&
       result &&
       createPortal(
-        <div className="print-portal">
-          {printMode === 'map' ? (
+        <div className="print-portal" ref={printPortalRef}>
+          {(printMode ?? pdfRequest) === 'map' ? (
             <PrintMapDocument result={result} parts={resultParts} />
           ) : (
             <div className="print-doc-labels">
