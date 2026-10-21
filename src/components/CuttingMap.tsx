@@ -14,16 +14,20 @@ import { sidesForFlags, type PartSide as Side } from '../partEdges';
  * واحد دستگاه مختصات خودِ میلی‌متر است (viewBox برابر ابعاد صفحهٔ خام)،
  * پس نقشه در هر اندازه‌ای بدون افت کیفیت و با حفظ نسبت ابعاد نمایش داده می‌شود.
  *
- * علائم کارگاهی (نسخهٔ ساده و خوانا):
- *  - بدنهٔ قطعه: سفید با حاشیهٔ مشکی
- *  - هر لبه‌ای که عملیات دارد (مقدار ۱ یا ۲): یک **پیکان مشکی در بیرون قطعه**
- *    که به همان لبه اشاره می‌کند + نام عملیات در کنار پیکان:
- *      «نوار» / «شیار» / «فارسی ۴۵°»
- *  - مقدار ۱ = یک پیکان روی یک لبه؛ مقدار ۲ = پیکان و متن جداگانه برای هر دو
- *    لبهٔ موازی. اگر چند عملیات روی یک لبه باشد، هر عملیات سهم خودش را روی
- *    همان لبه می‌گیرد تا پیکان‌ها و متن‌ها روی هم نیفتند.
- *  - پیکان/متن لبهٔ افقی افقی است و برای لبهٔ عمودی ۹۰ درجه می‌چرخد.
- *  - هیچ خط ضخیم/خط‌چین/مثلث یا متن عملیاتی داخل قطعه رسم نمی‌شود.
+ * قرارداد خواندن نقشه (بازطراحی — همهٔ نوشته‌ها «داخل» خود قطعه):
+ *  - بدنهٔ قطعه: سفید با حاشیهٔ مشکی؛ پرت/باقی‌ماندهٔ ورق: هاشور مورب.
+ *  - مرکز قطعه با فونت درشت و مشکی: نام قطعه و زیر آن در دو خط جدا
+ *    «طول: …» و «عرض: …». اگر قطعه چرخیده باشد متن مرکز هم ۹۰° می‌چرخد.
+ *  - عملیات هر لبه با همان کلمه، داخل قطعه و موازی با همان لبه و چسبیده
+ *    به آن نوشته می‌شود: «نوار» ‏/ «شیار» کنار لبه، و «فارسی ۴۵°» نزدیک
+ *    گوشهٔ لبهٔ فارسی. مقدار ۲ یعنی هر دو لبهٔ موازی برچسب خودشان را دارند.
+ *  - چند عملیات روی یک لبه: اگر عمق قطعه اجازه بدهد با فاصله از لبه
+ *    «پله‌ای» به داخل چیده می‌شوند (یکی نزدیک لبه، دیگری عقب‌تر) وگرنه
+ *    طول لبه بین آن‌ها تقسیم می‌شود تا روی هم نیفتند. همهٔ متن‌ها هالهٔ
+ *    سفید دارند تا روی خط برش یا هاشور گم نشوند.
+ *  - قطعهٔ خیلی کوچک (کوچک‌ترین بُعد کمتر از ۴۰mm): فقط ابعاد فشردهٔ
+ *    «طول×عرض» در مرکز می‌آید و کلمه‌های عملیات حذف می‌شوند (شرح کامل
+ *    عملیات در لیبل و برگهٔ کنترل هست).
  *
  * نگاشت لبه‌ها هنگام چرخش: فلگ‌های «طول» یعنی دو لبهٔ موازی با محور طول قطعه.
  * اگر قطعه روی نقشه ۹۰ درجه چرخیده باشد (`isRotated`)، محور طول آن عمودی
@@ -38,14 +42,19 @@ const COLOR = {
   wasteFill: '#ffffff',
   wasteLine: '#666666',
   wasteLine2: '#000000',
-  marker: '#000000',
   partFill: '#ffffff',
   partStroke: '#000000',
   text: '#000000',
 };
 
+const FONT_FAMILY = 'Vazirmatn, Tahoma, Arial, sans-serif';
+const charCount = (str: string): number => [...str].length;
+
+/** زیر این اندازه (mm واقعی قطعه) فقط ابعاد فشرده نوشته می‌شود، بدون کلمهٔ عملیات */
+const SMALL_PART_MM = 40;
+
 /* ------------------------------------------------------------------ */
-/*  علائم کارگاهی: پیکان + نام عملیات، بیرون قطعه                      */
+/*  برچسب عملیات داخل قطعه، کنار لبهٔ مربوطه                           */
 /* ------------------------------------------------------------------ */
 
 type OperationKey = 'band' | 'groove' | 'farsi';
@@ -56,65 +65,69 @@ const OPERATION_LABEL: Record<OperationKey, string> = {
   farsi: 'فارسی ۴۵°',
 };
 
-/** بردارهای هر لبه: `n` رو به بیرون قطعه و `t` در امتداد لبه */
-const SIDE_VECTORS: Record<Side, { n: [number, number]; t: [number, number] }> = {
-  top: { n: [0, -1], t: [1, 0] },
-  bottom: { n: [0, 1], t: [1, 0] },
-  left: { n: [-1, 0], t: [0, 1] },
-  right: { n: [1, 0], t: [0, 1] },
+/** بردار رو به «داخل» قطعه برای هر لبه و بردار در امتداد لبه */
+const INWARD: Record<Side, [number, number]> = {
+  top: [0, 1],
+  bottom: [0, -1],
+  left: [1, 0],
+  right: [-1, 0],
+};
+const TANGENT: Record<Side, [number, number]> = {
+  top: [1, 0],
+  bottom: [1, 0],
+  left: [0, 1],
+  right: [0, 1],
 };
 
 const PART_SIDES: Side[] = ['top', 'bottom', 'left', 'right'];
 
-/** بزرگ‌ترین اندازهٔ متن علائم (میلی‌متر نقشه) */
-const MARKER_FONT_MAX = 13;
-
 /**
- * حاشیهٔ لازم دور ورق (میلی‌متر نقشه) تا پیکان‌ها و متن‌های بیرون قطعه‌های
- * چسبیده به لبهٔ ورق بریده نشوند. با `scale` هم‌واحد است.
+ * اندازه‌های متن داخل قطعه — همه بر حسب «میلی‌مترِ نقشه» (واحد viewBox)
+ * تا در هر اندازهٔ نمایش/چاپ، نسبتشان با ابعاد واقعی قطعه ثابت بماند.
  */
-export function markerPadMm(scale: number): number {
-  const font = MARKER_FONT_MAX * scale;
-  // فاصله از لبه + طول پیکان + ارتفاع متن (با کمی اطمینان)
-  return Math.ceil(font * (0.22 + 0.9 + 1.35));
-}
+const EDGE_FONT_MAX_MM = 46;
+const CENTER_FONT_MAX_MM = 46;
+/** کمترین اندازهٔ خوانا برای کلمهٔ عملیات (mm نقشه) */
+const EDGE_FONT_MIN_MM = 8;
+/** کمترین اندازه برای متن‌های مرکز (mm نقشه) */
+const CENTER_FONT_MIN_MM = 15;
+/** کمترین اندازه برای «طول×عرض» فشرده در قطعات باریک (mm نقشه) */
+const COMPACT_FONT_MIN_MM = 7;
 
-/**
- * جای تک‌عملکردی هر لبه روی همان لبه (کسر طول لبه).
- * لبه‌های روبه‌رو با هم فرق دارند تا وقتی دو قطعه فقط به‌اندازهٔ تیغه فاصله
- * دارند، برچسب‌های بیرونی‌شان روی هم نیفتد.
- */
-const SIDE_ANCHOR: Record<Side, number> = {
-  top: 0.32,
-  bottom: 0.68,
-  left: 0.34,
-  right: 0.66,
-};
-
-interface MarkerSpec {
+interface EdgeLabelSpec {
   key: string;
-  /** چندضلعی پیکان (رشتهٔ points) */
-  points: string;
   label: string;
   textX: number;
   textY: number;
-  /** چرخش متن برای لبهٔ عمودی */
   rotate?: string;
   fontSize: number;
 }
 
+/** عرض تقریبی یک متن با اندازهٔ فونت داده‌شده */
+const textWidth = (label: string, fontSize: number): number => charCount(label) * fontSize * 0.6;
+
 /**
- * علامت‌های یک قطعه: برای هر لبهٔ دارای عملیات (۱ یا ۲)، یک پیکان مشکی در
- * **بیرون قطعه** که نوکش به لبه اشاره می‌کند + نام عملیات کنار آن.
- * چند عملیات روی یک لبه، طول لبه را بین خودشان تقسیم می‌کنند.
+ * برچسب‌های عملیات یک قطعه: برای هر لبهٔ دارای عملیات (۱ یا ۲)، کلمهٔ
+ * عملیات «داخل» قطعه، موازی با همان لبه و با فاصلهٔ کم از آن نوشته می‌شود.
+ *
+ * مدیریت تداخل (Staggering):
+ *  - اگر عمق قطعه برای همهٔ ردیف‌های دو لبهٔ روبه‌رو + متن مرکز کافی باشد،
+ *    عملیات‌های یک لبه به‌صورت پله‌ای از لبه به داخل چیده می‌شوند
+ *    (ردیف اول چسبیده به لبه، ردیف بعدی عقب‌تر).
+ *  - اگر جا کم باشد، طول لبه بین عملیات‌ها تقسیم می‌شود (کنار هم روی لبه).
+ *  - «فارسی ۴۵°» در هر دو حالت نزدیک گوشهٔ شروع همان لبه می‌نشیند.
+ * برچسبی که حتی با کوچک‌ترین فونت خوانا هم در لبه جا نشود، رسم نمی‌شود.
  */
-function buildMarkers(
+function buildEdgeLabels(
   placement: PlacedPartData,
   source: CutPart | undefined,
-  s: number,
-): MarkerSpec[] {
+): EdgeLabelSpec[] {
   if (!source) return [];
   const { x, y, width: w, height: h, isRotated } = placement;
+  const minDim = Math.min(w, h);
+
+  // قطعهٔ خیلی کوچک: کلمهٔ عملیات کنار لبه جا نمی‌شود و نقشه را شلوغ می‌کند
+  if (minDim < SMALL_PART_MM) return [];
 
   const sidesOf = (lengthCount: number, widthCount: number) =>
     sidesForFlags(lengthCount, widthCount, isRotated);
@@ -122,78 +135,153 @@ function buildMarkers(
   const grooveSides = sidesOf(source.grooveLength, source.grooveWidth);
   const farsiSides = sidesOf(source.farsiLength, source.farsiWidth);
 
-  const markers: MarkerSpec[] = [];
-
-  for (const side of PART_SIDES) {
+  const opsOn = (side: Side): OperationKey[] => {
     // ترتیب ثابت: نوار، شیار، فارسی
     const ops: OperationKey[] = [];
     if (bandSides.includes(side)) ops.push('band');
     if (grooveSides.includes(side)) ops.push('groove');
     if (farsiSides.includes(side)) ops.push('farsi');
+    return ops;
+  };
+
+  // اندازهٔ پایه از کوچک‌ترین بُعد قطعه مشتق می‌شود (همه بر حسب mm نقشه)
+  const baseFont = Math.min(EDGE_FONT_MAX_MM, minDim * 0.17);
+  const minReadable = EDGE_FONT_MIN_MM;
+  if (baseFont < minReadable) return [];
+  const rowH = baseFont * 1.32;
+
+  /** آیا برای یک جفت لبهٔ روبه‌رو، چیدمان پله‌ای (به داخل) جا می‌شود؟ */
+  const canStack = (sideA: Side, sideB: Side, depth: number): boolean =>
+    depth >= (opsOn(sideA).length + opsOn(sideB).length) * rowH + baseFont * 2.7;
+  const stackHorizontal = canStack('top', 'bottom', h);
+  const stackVertical = canStack('left', 'right', w);
+
+  const labels: EdgeLabelSpec[] = [];
+
+  for (const side of PART_SIDES) {
+    const ops = opsOn(side);
     if (ops.length === 0) continue;
 
     const horizontal = side === 'top' || side === 'bottom';
     const edgeLength = horizontal ? w : h;
-    const { n: normal, t: tangent } = SIDE_VECTORS[side];
-    const [nx, ny] = normal;
-    const [tx, ty] = tangent;
-    const slot = edgeLength / ops.length; // سهم هر عملیات روی لبه
+    const [ix, iy] = INWARD[side];
+    const stack = horizontal ? stackHorizontal : stackVertical;
+
+    // نقطهٔ شروع لبه (گوشهٔ آغاز در جهت بردار مماس)
+    const edgeStart: [number, number] = horizontal
+      ? [x, side === 'top' ? y : y + h]
+      : [side === 'left' ? x : x + w, y];
+    const [tx, ty] = TANGENT[side];
+    const at = (along: number, inwardDist: number): [number, number] => [
+      edgeStart[0] + tx * along + ix * inwardDist,
+      edgeStart[1] + ty * along + iy * inwardDist,
+    ];
 
     ops.forEach((op, index) => {
       const label = OPERATION_LABEL[op];
-      const chars = [...label].length;
 
-      // اندازهٔ متن: خوانا، ولی داخل سهم همین عملیات روی لبه
-      const font = Math.max(
-        4.5 * s,
-        Math.min(MARKER_FONT_MAX * s, (slot * 0.92) / (chars * 0.62)),
-      );
-      const arrowLen = Math.max(0.9 * font, 5 * s);
-      const gap = Math.max(0.22 * font, 2 * s);
-      const halfShaft = Math.min(Math.max(0.17 * font, 1.4 * s), slot * 0.16);
-      const halfHead = Math.min(Math.max(halfShaft * 2.6, 1.6 * s), slot * 0.42);
-      const headLen = arrowLen * 0.5;
-
-      // نقطهٔ لنگر روی لبه (برای یک عملیات: لنگر ثابت هر لبه، برای چند عملیات: سهم‌بندی)
-      const along =
-        ops.length === 1 ? edgeLength * SIDE_ANCHOR[side] : slot * (index + 0.5);
-      const ax = horizontal ? x + along : side === 'left' ? x : x + w;
-      const ay = horizontal ? (side === 'top' ? y : y + h) : y + along;
-      const at = (outward: number, lateral = 0): [number, number] => [
-        ax + nx * outward + tx * lateral,
-        ay + ny * outward + ty * lateral,
-      ];
-
-      // پیکان مشکی، نوک‌تیز به سمت لبه
-      const points = [
-        at(gap, 0),
-        at(gap + headLen, -halfHead),
-        at(gap + headLen, -halfShaft),
-        at(gap + arrowLen, -halfShaft),
-        at(gap + arrowLen, halfShaft),
-        at(gap + headLen, halfShaft),
-        at(gap + headLen, halfHead),
-      ]
-        .map(([px, py]) => `${px.toFixed(2)},${py.toFixed(2)}`)
-        .join(' ');
-
-      // متن بیرون‌تر از پیکان؛ لبهٔ عمودی ۹۰ درجه می‌چرخد
-      const textOutward = gap + arrowLen + font * (horizontal ? 0.78 : 0.42);
-      const [textX, textY] = at(textOutward);
-
-      markers.push({
-        key: `${side}-${op}`,
-        points,
-        label,
-        textX,
-        textY,
-        rotate: horizontal ? undefined : `rotate(-90 ${textX.toFixed(2)} ${textY.toFixed(2)})`,
-        fontSize: font,
-      });
+      if (stack) {
+        // ردیف پله‌ای از لبه به داخل؛ فاصلهٔ مرکز ردیف اول کمی بیشتر از نصف ارتفاع متن
+        const inwardDist = baseFont * 0.78 + index * rowH;
+        let font = Math.min(baseFont, (edgeLength * 0.94) / (charCount(label) * 0.6));
+        if (font < minReadable) return;
+        const along =
+          op === 'farsi'
+            ? // فارسی نزدیک گوشهٔ شروع لبه (ولی بیرون از قطعه نزند)
+              Math.min(edgeLength / 2, textWidth(label, font) / 2 + font * 0.55)
+            : edgeLength / 2;
+        const [textX, textY] = at(along, inwardDist);
+        labels.push({
+          key: `${side}-${op}`,
+          label,
+          textX,
+          textY,
+          rotate: horizontal ? undefined : `rotate(-90 ${textX.toFixed(2)} ${textY.toFixed(2)})`,
+          fontSize: font,
+        });
+      } else {
+        // کنار هم روی یک ردیف: طول لبه بین عملیات‌ها تقسیم می‌شود
+        const slot = edgeLength / ops.length;
+        const font = Math.min(baseFont, (slot * 0.92) / (charCount(label) * 0.6));
+        if (font < minReadable) return;
+        // فارسی در اولین سهم (نزدیک گوشهٔ شروع) بماند؛ بقیه به‌ترتیب بعد از آن
+        const order = op === 'farsi' ? 0 : ops.filter((o) => o !== 'farsi').indexOf(op) + (ops.includes('farsi') ? 1 : 0);
+        const along = slot * (order + 0.5);
+        const [textX, textY] = at(along, font * 0.78);
+        labels.push({
+          key: `${side}-${op}`,
+          label,
+          textX,
+          textY,
+          rotate: horizontal ? undefined : `rotate(-90 ${textX.toFixed(2)} ${textY.toFixed(2)})`,
+          fontSize: font,
+        });
+      }
     });
   }
 
-  return markers;
+  return labels;
+}
+
+/* ------------------------------------------------------------------ */
+/*  متن مرکز قطعه: نام + طول/عرض درشت و مشکی                           */
+/* ------------------------------------------------------------------ */
+
+interface CenterLines {
+  lines: string[];
+  fontSize: number;
+}
+
+/**
+ * انتخاب هوشمند متن مرکز بر اساس فضای قطعه:
+ *  - جادار: نام + «طول: …» + «عرض: …»
+ *  - متوسط: فقط «طول: …» و «عرض: …»
+ *  - کوچک (یا زیر ۴۰mm): فقط «طول×عرض» فشرده، بدون کلمهٔ اضافه
+ *  - خیلی ریز: شمارهٔ نمونه
+ */
+function buildCenterLines(
+  placement: PlacedPartData,
+  source: CutPart | undefined,
+  name: string,
+): CenterLines | null {
+  const { width: w, height: h, isRotated } = placement;
+  // طول/عرض «خود قطعه» از جدول؛ بدون ردیف منبع، از روی جهت چیدمان
+  const partLength = source?.length ?? (isRotated ? h : w);
+  const partWidth = source?.width ?? (isRotated ? w : h);
+  const lengthLine = `طول: ${partLength}`;
+  const widthLine = `عرض: ${partWidth}`;
+  const compactLine = `${partLength}×${partWidth}`;
+
+  const availAlong = (isRotated ? h : w) * 0.92; // در امتداد خط متن (mm نقشه)
+  const availAcross = (isRotated ? w : h) * 0.92; // عمود بر خط متن (mm نقشه)
+  const smallPart = Math.min(w, h) < SMALL_PART_MM;
+
+  const fitFont = (lines: string[], cap: number, acrossDivisor: number): number =>
+    Math.min(
+      cap,
+      availAlong / (Math.max(...lines.map(charCount)) * 0.62),
+      availAcross / acrossDivisor,
+    );
+
+  if (!smallPart) {
+    const three = fitFont([name, lengthLine, widthLine], CENTER_FONT_MAX_MM, 3.9);
+    if (three >= CENTER_FONT_MIN_MM) return { lines: [name, lengthLine, widthLine], fontSize: three };
+
+    const two = fitFont([lengthLine, widthLine], CENTER_FONT_MAX_MM, 2.7);
+    if (two >= CENTER_FONT_MIN_MM) return { lines: [lengthLine, widthLine], fontSize: two };
+  }
+
+  // نوارهای باریک (مثلاً ۱۲۰۰×۳۰): فقط «طول×عرض» در امتداد طول قطعه
+  const compact = fitFont([compactLine], 40, 1.35);
+  if (compact >= COMPACT_FONT_MIN_MM) return { lines: [compactLine], fontSize: compact };
+
+  // آخرین تلاش برای قطعات غیرباریک: ابعاد دو خطی با فونت کوچک‌تر از آستانهٔ اصلی
+  if (!smallPart) {
+    const twoSmall = fitFont([lengthLine, widthLine], CENTER_FONT_MAX_MM, 2.7);
+    if (twoSmall >= COMPACT_FONT_MIN_MM) return { lines: [lengthLine, widthLine], fontSize: twoSmall };
+  }
+
+  return null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -208,128 +296,82 @@ interface PlacedPartProps {
   scale: number;
 }
 
-/** بدنهٔ قطعه + برچسب مرکز (نام/ابعاد)؛ علائم عملیات در لایهٔ جدا رسم می‌شوند */
+/** بدنهٔ قطعه + متن مرکز (نام/طول/عرض) + کلمه‌های عملیات کنار لبه‌ها — همه داخل قطعه */
 function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
   const { x, y, width: w, height: h, isRotated } = placement;
   const cx = x + w / 2;
   const cy = y + h / 2;
 
-  const bandSides = source ? sidesForFlags(source.bandLength, source.bandWidth, isRotated) : [];
-  const farsiSides = source ? sidesForFlags(source.farsiLength, source.farsiWidth, isRotated) : [];
-  const grooveSides = source ? sidesForFlags(source.grooveLength, source.grooveWidth, isRotated) : [];
-
-  /* -------- متن مرکز قطعه: نام + ابعاد (شناسهٔ قطعه، نه علامت عملیات) -------- */
   const name = (placement.name ?? source?.name ?? '').trim() || 'بدون نام';
-  const dims = `${placement.width}×${placement.height}`;
-  const rotateText = isRotated;
-  const availAlong = (rotateText ? h : w) * 0.92; // در امتداد خط متن
-  const availAcross = (rotateText ? w : h) * 0.92; // عمود بر خط متن
-  const charCount = (str: string) => [...str].length;
-  const minFont = 6.5 * s;
+  const mapDims = `${placement.width}×${placement.height}`;
 
-  const twoLineFont = Math.min(
-    13 * s,
-    availAlong / (Math.max(charCount(name), charCount(dims)) * 0.58),
-    availAcross / 2.9,
-  );
-  const oneLineFont = Math.min(
-    11 * s,
-    availAlong / (charCount(dims) * 0.58),
-    availAcross / 1.45,
-  );
+  const center = buildCenterLines(placement, source, name);
+  const edgeLabels = buildEdgeLabels(placement, source);
 
-  const renderLabel = () => {
-    const transform = rotateText ? `rotate(-90 ${cx} ${cy})` : undefined;
-    if (twoLineFont >= minFont) {
-      return (
-        <g transform={transform} pointerEvents="none">
-          <text
-            x={cx}
-            y={cy - twoLineFont * 0.62}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fontSize={twoLineFont}
-            fontWeight="700"
-            fill={COLOR.text}
-            stroke="#ffffff"
-            strokeWidth={twoLineFont * 0.16}
-            strokeLinejoin="round"
-            paintOrder="stroke"
-          >
-            {name}
-          </text>
-          <text
-            x={cx}
-            y={cy + twoLineFont * 0.72}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fontSize={twoLineFont * 0.88}
-            fill={COLOR.text}
-            stroke="#ffffff"
-            strokeWidth={twoLineFont * 0.14}
-            strokeLinejoin="round"
-            paintOrder="stroke"
-            style={{ direction: 'ltr' }}
-          >
-            {dims}
-          </text>
-        </g>
-      );
-    }
-    if (oneLineFont >= minFont) {
-      return (
-        <g transform={transform} pointerEvents="none">
+  const renderCenter = () => {
+    const transform = isRotated ? `rotate(-90 ${cx} ${cy})` : undefined;
+    if (!center) {
+      if (Math.min(w, h) >= 14) {
+        // فضای متن نیست؛ دست‌کم شمارهٔ نمونه را نشان بده
+        return (
           <text
             x={cx}
             y={cy}
             textAnchor="middle"
             dominantBaseline="middle"
-            fontSize={oneLineFont}
-            fontWeight="600"
+            fontSize={Math.min(30, Math.min(w, h) / 1.6)}
+            fontWeight="800"
+            fill={COLOR.text}
+            pointerEvents="none"
+            style={{ fontFamily: FONT_FAMILY }}
+          >
+            {placement.instanceIndex}
+          </text>
+        );
+      }
+      return null;
+    }
+    const { lines, fontSize } = center;
+    const lineStep = fontSize * 1.18;
+    return (
+      <g transform={transform} pointerEvents="none">
+        {lines.map((line, i) => (
+          <text
+            key={i}
+            x={cx}
+            y={cy + (i - (lines.length - 1) / 2) * lineStep}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize={fontSize}
+            fontWeight="800"
             fill={COLOR.text}
             stroke="#ffffff"
-            strokeWidth={oneLineFont * 0.16}
+            strokeWidth={fontSize * 0.16}
             strokeLinejoin="round"
             paintOrder="stroke"
-            style={{ direction: 'ltr' }}
+            style={{ fontFamily: FONT_FAMILY, direction: 'rtl' }}
           >
-            {dims}
+            {line}
           </text>
-        </g>
-      );
-    }
-    if (Math.min(w, h) >= 13 * s) {
-      // فضای متن نیست؛ دست‌کم شمارهٔ نمونه را نشان بده
-      return (
-        <text
-          x={cx}
-          y={cy}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fontSize={Math.min(10 * s, Math.min(w, h) / 1.7)}
-          fontWeight="700"
-          fill={COLOR.text}
-          pointerEvents="none"
-        >
-          {placement.instanceIndex}
-        </text>
-      );
-    }
-    return null;
+        ))}
+      </g>
+    );
   };
 
-  const flagsSummary = [
-    bandSides.length > 0 && 'نوار',
-    farsiSides.length > 0 && 'فارسی ۴۵°',
-    grooveSides.length > 0 && 'شیار',
-  ]
-    .filter(Boolean)
-    .join('، ');
+  const flagsSummary = source
+    ? [
+        (source.bandLength || source.bandWidth) && 'نوار',
+        (source.farsiLength || source.farsiWidth) && 'فارسی ۴۵°',
+        (source.grooveLength || source.grooveWidth) && 'شیار',
+      ]
+        .filter(Boolean)
+        .join('، ')
+    : '';
 
   return (
     <g>
       <title>
-        {`${name} — نمونهٔ ${placement.instanceIndex} — ${dims} mm روی صفحهٔ ${placement.sheetIndex + 1} در (${placement.x}, ${placement.y})${isRotated ? ' — چرخیده ۹۰°' : ''}${flagsSummary ? ` — ${flagsSummary}` : ''}`}
+        {`${name} — نمونهٔ ${placement.instanceIndex} — ${mapDims} mm روی صفحهٔ ${placement.sheetIndex + 1} در (${placement.x}, ${placement.y})${isRotated ? ' — چرخیده ۹۰°' : ''}${flagsSummary ? ` — ${flagsSummary}` : ''}`}
       </title>
 
       {/* بدنهٔ قطعه */}
@@ -343,62 +385,32 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
         strokeWidth={1.8 * s}
       />
 
-      {renderLabel()}
-    </g>
-  );
-}
-
-/**
- * لایهٔ علائم: پیکان + نام عملیات برای همهٔ قطعه‌ها، **بالای** همهٔ بدنه‌ها
- * رسم می‌شود تا اگر برچسب بیرونی به قطعهٔ مجاور برسد، پشت بدنهٔ سفید آن
- * پنهان نشود (متن هالهٔ سفید دارد و خوانا می‌ماند).
- */
-function MarkerLayer({
-  placements,
-  partsById,
-  scale,
-}: {
-  placements: PlacedPartData[];
-  partsById: Map<string, CutPart>;
-  scale: number;
-}) {
-  return (
-    <g className="part-markers" pointerEvents="none">
-      {placements.flatMap((placement) =>
-        buildMarkers(placement, partsById.get(placement.id), scale).map((marker) => (
-          <g
-            key={`${placement.id}-${placement.instanceIndex}-${placement.x}-${placement.y}-${marker.key}`}
+      {/* کلمه‌های عملیات، داخل قطعه و کنار لبهٔ مربوطه */}
+      <g className="part-edge-labels" pointerEvents="none">
+        {edgeLabels.map((spec) => (
+          <text
+            key={spec.key}
+            x={spec.textX}
+            y={spec.textY}
+            transform={spec.rotate}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize={spec.fontSize}
+            fontWeight="800"
+            fill={COLOR.text}
+            stroke="#ffffff"
+            strokeWidth={spec.fontSize * 0.2}
+            strokeLinejoin="round"
+            paintOrder="stroke"
+            style={{ fontFamily: FONT_FAMILY, direction: 'rtl' }}
           >
-            <polygon
-              points={marker.points}
-              fill={COLOR.marker}
-              stroke="#ffffff"
-              strokeWidth={Math.max(0.9 * scale, 0.8)}
-              strokeLinejoin="round"
-            />
-            <text
-              x={marker.textX}
-              y={marker.textY}
-              transform={marker.rotate}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize={marker.fontSize}
-              fontWeight="700"
-              fill={COLOR.marker}
-              stroke="#ffffff"
-              strokeWidth={marker.fontSize * 0.18}
-              strokeLinejoin="round"
-              paintOrder="stroke"
-              style={{
-                direction: 'rtl',
-                fontFamily: 'Vazirmatn, Tahoma, Arial, sans-serif',
-              }}
-            >
-              {marker.label}
-            </text>
-          </g>
-        )),
-      )}
+            {spec.label}
+          </text>
+        ))}
+      </g>
+
+      {/* نام و ابعاد در مرکز (بالای برچسب‌های لبه تا همیشه خوانا بماند) */}
+      {renderCenter()}
     </g>
   );
 }
@@ -425,8 +437,8 @@ export default function CuttingMap({ sheets, stock, parts, forPrint = false }: C
 
   // چند میلی‌متر به‌ازای هر پیکسل اسمی اگر ورق با عرض ~۱۰۰۰ پیکسل دیده شود
   const scale = Math.max(stock.length, stock.width) / 1000;
-  // حاشیهٔ دور ورق برای پیکان/متن‌های بیرون قطعه‌های کنارِ لبهٔ ورق
-  const pad = markerPadMm(scale);
+  // حاشیهٔ حداقلی دور ورق فقط برای بریده‌نشدن خط دور ورق (نوشته‌ها داخل قطعه‌اند)
+  const pad = Math.ceil(3 * scale);
 
   if (sheets.length === 0) return null;
 
@@ -444,10 +456,10 @@ export default function CuttingMap({ sheets, stock, parts, forPrint = false }: C
         <ul className="map-legend flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold text-slate-700">
           <li className="flex items-center gap-1">
             <svg viewBox="0 0 28 20" className="h-4 w-7" aria-hidden="true">
-              <line x1="1" y1="18" x2="27" y2="18" stroke="#000" strokeWidth="2" />
-              <polygon points="14,17 9,7 12,7 12,1 16,1 16,7 19,7" fill="#000" />
+              <rect x="1" y="1" width="26" height="18" fill="#fff" stroke="#000" strokeWidth="1.6" />
+              <path d="M5 15.5h18M5 11.5h13" stroke="#000" strokeWidth="2.4" strokeLinecap="round" />
             </svg>
-            پیکان بیرون لبه = عملیات آن لبه: «نوار» / «شیار» / «فارسی ۴۵°»
+            نام عملیات («نوار» / «شیار» / «فارسی ۴۵°») داخل قطعه و کنار همان لبه نوشته می‌شود
           </li>
           <li className="flex items-center gap-1">
             <svg viewBox="0 0 24 16" className="h-4 w-6" aria-hidden="true">
@@ -563,13 +575,6 @@ export default function CuttingMap({ sheets, stock, parts, forPrint = false }: C
                       scale={scale}
                     />
                   ))}
-
-                  {/* علائم عملیات بالای همهٔ قطعه‌ها */}
-                  <MarkerLayer
-                    placements={sheet.placements}
-                    partsById={partsById}
-                    scale={scale}
-                  />
                 </svg>
               </div>
             </div>
@@ -580,8 +585,9 @@ export default function CuttingMap({ sheets, stock, parts, forPrint = false }: C
       {!forPrint && (
         <p className="mt-2 text-[11px] leading-5 text-slate-400">
           مبدأ نقشه (۰،۰) گوشهٔ شروع ورق است؛ محور افقی در جهت طول ورق و محور عمودی در جهت عرض آن.
-          فاصله‌های باریک بین قطعات همان خوراک تیغه (Kerf) است. پیکان بیرون هر لبه، عملیات همان لبه را
-          نشان می‌دهد؛ روی هر قطعه مکث کنید تا جزئیاتش (مختصات، چرخش و عملیات کارگاهی) را ببینید.
+          فاصله‌های باریک بین قطعات همان خوراک تیغه (Kerf) است. داخل هر قطعه نام و ابعادش
+          («طول» و «عرض») نوشته شده و کلمهٔ عملیات هر لبه — نوار، شیار یا فارسی ۴۵° — داخل همان
+          قطعه و کنار همان لبه آمده است؛ روی هر قطعه مکث کنید تا جزئیاتش را ببینید.
         </p>
       )}
     </div>
