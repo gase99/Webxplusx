@@ -1,12 +1,23 @@
 name: Build Android APK
 
 # ساخت APK دیباگ بدون نیاز به Android Studio روی سیستم شما:
-# GitHub → Actions → Build Android APK → Run workflow
+#   • دستی: GitHub → Actions → Build Android APK → Run workflow
+#   • خودکار: هر تغییری در فایل‌های مرتبط با نسخهٔ بومی روی main،
+#     و همچنین پوش تگ نسخه (v*)
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     tags:
       - 'v*'
+    paths:
+      - '.github/workflows/build-android.yml'
+      - 'android/**'
+      - 'capacitor.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'vite.config.ts'
+      - 'scripts/android-apk.mjs'
 
 permissions:
   contents: read

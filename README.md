@@ -360,10 +360,18 @@ npm run desktop:dev         # پنجرهٔ Electron با همان بیلد
 
 ### ۳) ساخت خودکار با GitHub Actions (بدون نصب ابزار روی سیستم شما)
 
-دو ورک‌فلوی دستی اضافه شده است (`Actions → … → Run workflow`):
+دو ورک‌فلوی آماده است:
 
-- **Build Android APK** → artifact با نام `a-cut-2dpro-debug-apk`
-- **Build Windows Portable EXE** → artifact با نام `a-cut-2dpro-windows-portable`
+- **Build Android APK** (`.github/workflows/build-android.yml`) → artifact با نام
+  `a-cut-2dpro-debug-apk`؛ با `Actions → Build Android APK → Run workflow` دستی اجرا
+  می‌شود و با هر تغییر در `android/**`، `capacitor.config.ts`، `vite.config.ts`،
+  `package*.json` یا خودِ فایل ورک‌فلو روی `main` و همچنین پوش تگ `v*` خودکار اجرا می‌شود.
+- **Build Windows Portable EXE** (`.github/workflows/windows-exe.yml`) → artifact با
+  نام `a-cut-2dpro-windows-portable` (دستی یا با تگ `v*`)
+
+> نکته: در مرحلهٔ `Set up Android SDK` باید `packages: 'platform-tools'` تنظیم شود؛
+> مقدار پیش‌فرض این اکشن (`tools platform-tools`) شامل پکیج منسوخ `tools` است که
+> گوگل آن را از مخازن حذف کرده و باعث خطای ورک‌فلو می‌شود.
 
 ## ساختار فایل‌ها
 
