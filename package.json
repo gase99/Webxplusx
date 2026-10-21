@@ -6,14 +6,25 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:app": "tsc --noEmit && vite build --mode app",
+    "cap:sync": "npm run build:app && cap sync",
+    "android:open": "npm run build:app && cap sync android && cap open android",
+    "android:apk": "npm run build:app && cap sync android && node scripts/android-apk.mjs assembleDebug",
+    "android:aab": "npm run build:app && cap sync android && node scripts/android-apk.mjs bundleRelease",
+    "desktop:install": "npm --prefix desktop install",
+    "desktop:dev": "npm run build:app && node desktop/prepare.mjs && npm --prefix desktop start",
+    "build:win": "npm run build:app && node desktop/prepare.mjs && npm --prefix desktop run dist:win"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
     "dexie": "^4.4.6",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
     "@tailwindcss/vite": "^4.1.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",

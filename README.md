@@ -10,9 +10,21 @@
 
 ```bash
 npm install
-npm run dev      # اجرای محیط توسعه (Vite)
-npm run build    # بررسی تایپ‌ها + بیلد نهایی
+npm run dev        # اجرای محیط توسعه (Vite) — http://localhost:5173
+npm run build      # بررسی تایپ‌ها + بیلد وب برای GitHub Pages
+npm run build:app  # بیلد بستهٔ بومی (base نسبی، بدون Service Worker) برای اندروید/ویندوز
 ```
+
+| اسکریپت | کار |
+|---|---|
+| `npm run build:app` | بیلد با `base: './'` و PWA خاموش (ورودی Capacitor و Electron) |
+| `npm run cap:sync` | بیلد بومی + `cap sync` (کپی `dist` داخل پروژهٔ اندروید) |
+| `npm run android:open` | بیلد + سینک + باز کردن پروژه در Android Studio |
+| `npm run android:apk` | بیلد + سینک + `gradlew assembleDebug` → `app-debug.apk` |
+| `npm run android:aab` | بیلد + سینک + `gradlew bundleRelease` → `app-release.aab` |
+| `npm run desktop:install` | نصب وابستگی‌های Electron (یک‌بار) |
+| `npm run desktop:dev` | اجرای نسخهٔ دسکتاپ روی سیستم خودتان |
+| `npm run build:win` | ساخت **EXE پرتابل** ویندوز با electron-builder |
 
 ## تعاریف تخصصی
 
@@ -156,18 +168,25 @@ interface PlacedPart {
 یعنی دو لبهٔ موازی با محور طول قطعه؛ اگر قطعه ۹۰ درجه چرخیده باشد، این لبه‌ها روی
 نقشه چپ/راست‌اند (و لبه‌های «عرض» بالا/پایین).
 
-- **نوار (Edge Banding)** ← یک **خط ممتد مشکی دقیقاً ۵۰ میلی‌متر داخل لبه**،
-  موازی آن و در طول کامل ضلع. اندازهٔ همان ضلع (طول یا عرض، بسته به جهت لبه)
-  با فونت خوانا و رنگ مشکی دقیقاً در **مرکز نوار ۵۰ میلی‌متری** نوشته می‌شود؛
-  هیچ برچسب متنی `PVC`/«نوار» روی قطعه چاپ نمی‌شود؛ نمادش در راهنمای بالای نقشه آمده است.
-  روی لبهٔ عمودی متن ۹۰ درجه می‌چرخد تا خوانا بماند.
-- **فارسی ۴۵°** ← خط ممتد مشکی + **مثلث مشکی پر** + برچسب `45°` مشکی
-- **شیار** ← **خط‌چین مشکی دقیقاً ۲۰ میلی‌متر داخل لبه**، موازی آن و در طول کامل
-  ضلع (از یک طرف تا طرف دیگر)؛ بدون هیچ برچسب متنی، فقط خودِ خط‌چین.
+قرارداد جدید (نسخهٔ پیکانی): هیچ خط ضخیم/خط‌چین/مثلث یا متن عملیاتی داخل
+قطعه رسم نمی‌شود. برای هر لبه‌ای که عملیات دارد (مقدار ۱ یا ۲) یک **پیکان مشکی
+در بیرون قطعه** که نوکش به همان لبه اشاره می‌کند و کنارش نام عملیات:
 
-اگر چند عملیات روی یک لبه باشند (مثلاً نوار + فارسی + شیار)، هر علامت سر جای
-دقیق خودش (۵۰ / ۲۰ / لبه) رسم می‌شود و متن اندازه با هالهٔ سفید روی خطوط اطراف
-خوانا می‌ماند.
+- **نوار** ← پیکان بیرون لبه + متن «نوار»
+- **شیار** ← پیکان بیرون لبه + متن «شیار»
+- **فارسی ۴۵°** ← پیکان بیرون لبه + متن «فارسی ۴۵°»
+
+- مقدار **۱** = یک پیکان روی یک لبه؛ مقدار **۲** = پیکان و متن **جداگانه برای هر
+  دو لبهٔ موازی**.
+- پیکان/متن لبهٔ افقی افقی است و برای لبهٔ عمودی **۹۰ درجه** می‌چرخد.
+- اگر چند عملیات روی یک لبه باشند، طول لبه بین آن‌ها تقسیم می‌شود تا پیکان‌ها و
+  متن‌ها روی هم نیفتند؛ برای لبه‌های روبه‌روی دو قطعهٔ کنار هم هم لنگر هر لبه
+  کمی متفاوت است تا برچسب‌ها روی هم نیفتند.
+- علائم در یک لایهٔ جدا (`MarkerLayer`) **بالای** همهٔ قطعه‌ها رسم می‌شوند تا اگر
+  برچسب به قطعهٔ مجاور رسید، پشت بدنهٔ آن پنهان نشود (متن هالهٔ سفید دارد).
+- `viewBox` نقشه به اندازهٔ `markerPadMm(scale)` بزرگ‌تر از ورق گرفته می‌شود تا
+  پیکان/متن قطعه‌های چسبیده به لبهٔ ورق بریده نشود.
+- همین قرارداد روی **لیبل چاپی** (`MiniPartDiagram`) هم پیاده شده است.
 
 ## فاز ۴ — خروجی‌ها (چاپ نقشه + لیست قطعات / DXF / لیبل)
 
@@ -269,6 +288,83 @@ interface Project {
   ذخیره‌شده تشخیص داده می‌شود؛ در هدر و منو با نشان کهربایی دیده می‌شود و هنگام
   بستن/رفرش صفحه، `beforeunload` به کاربر هشدار می‌دهد.
 
+## نسخه‌های بومی — اندروید (Capacitor) و ویندوز (Electron)
+
+همان اپ React/Vite بدون تغییر منطق، داخل بستهٔ نصب‌شدنی اجرا می‌شود. تنظیمات آماده است:
+
+- `capacitor.config.ts` — `appId: com.acut.cut2dpro`، `appName: A-Cut 2Dpro`، **`webDir: 'dist'`**
+  و `server.androidScheme: 'https'` (تا IndexedDB/Dexie داخل WebView درست کار کند).
+- `android/` — پروژهٔ کامل اندروید (Capacitor 8، `minSdk 24`، `targetSdk 36`، `applicationId com.acut.cut2dpro`)،
+  آیکون لانچر و Splash با رنگ برند `#0284C7`، پشتیبانی RTL.
+- `desktop/` — بستهٔ Electron: `main.cjs` (سرو محتوای `web/` روی پروتکل امن `app://`)،
+  `prepare.mjs` (کپی `dist` → `desktop/web`)، و پیکربندی `electron-builder` برای خروجی
+  **portable EXE** با نام `A-Cut-2Dpro-0.1.0-portable.exe`.
+
+> نکته: `base` در `vite.config.ts` برای وب `'/Webxplusx/'` و برای بستهٔ بومی `'./'` است؛
+> بدون این تفاوت، فایل‌های JS/CSS داخل WebView/Electron پیدا نمی‌شدند.
+
+### ۱) ساخت فایل نصبی اندروید (`.apk`)
+
+**پیش‌نیازها:** Node.js 20+، **JDK 21**، Android SDK (از طریق Android Studio → SDK Manager:
+`Android SDK Platform 36` + `Build-Tools` + `Platform-Tools`) و متغیر محیطی `ANDROID_HOME`.
+
+**روش الف — خط فرمان (سریع‌ترین):**
+
+```bash
+npm install
+npm run build:app          # خروجی Vite با base نسبی
+npx cap sync android       # کپی dist داخل android/app/src/main/assets/public
+
+cd android
+./gradlew assembleDebug     # لینوکس/مک   (ویندوز: gradlew.bat assembleDebug)
+```
+خروجی قابل نصب:
+`android/app/build/outputs/apk/debug/app-debug.apk`
+(یا از ریشه: `npm run android:apk`)
+
+**روش ب — Android Studio (ساده‌ترین برای امضاشده):**
+
+```bash
+npm run android:open
+```
+سپس در Android Studio: `Build → Build Bundle(s) / APK(s) → Build APK(s)`.
+فایل در `android/app/build/outputs/apk/debug/` ساخته می‌شود. برای نسخهٔ Release:
+`Build → Generate Signed Bundle / APK…` و انتخاب Keystore خودتان (فایل `.jks` را
+هرگز کامیت نکنید؛ در `.gitignore` هست).
+
+نصب روی گوشی: فایل `.apk` را منتقل و «نصب از منابع نامشخص» را برای فایل‌منیجر فعال کنید،
+یا با کابل: `adb install -r android/app/build/outputs/apk/debug/app-debug.apk`.
+
+**بعد از هر تغییر کد:** فقط `npm run cap:sync` (یا `npm run android:apk`) کافی است؛
+دوباره `cap add` لازم نیست.
+
+### ۲) ساخت فایل اجرایی ویندوز (`.exe` پرتابل)
+
+**پیش‌نیازها:** Node.js 20+ و ویندوز ۱۰/۱۱ (پیشنهاد). ساخت EXE روی ویندوز بدون
+هیچ ابزار اضافه‌ای انجام می‌شود؛ روی لینوکس/مک به `wine` نیاز است.
+
+```bash
+npm install
+npm run desktop:install     # نصب electron + electron-builder داخل desktop/
+npm run build:win           # بیلد وب + کپی به desktop/web + ساخت EXE پرتابل
+```
+خروجی: `desktop/release/A-Cut-2Dpro-0.1.0-portable.exe` (بدون نصب، تک‌فایل، قابل اجرا از فلش).
+
+برای تست بدون ساخت EXE:
+```bash
+npm run desktop:dev         # پنجرهٔ Electron با همان بیلد
+```
+
+- ساخت فقط پوشهٔ اجرایی (بدون installer): `cd desktop && npm run pack:dir`
+- امضای دیجیتال ویندوز (اختیاری): متغیرهای `CSC_LINK` و `CSC_KEY_PASSWORD` را تنظیم کنید.
+
+### ۳) ساخت خودکار با GitHub Actions (بدون نصب ابزار روی سیستم شما)
+
+دو ورک‌فلوی دستی اضافه شده است (`Actions → … → Run workflow`):
+
+- **Build Android APK** → artifact با نام `a-cut-2dpro-debug-apk`
+- **Build Windows Portable EXE** → artifact با نام `a-cut-2dpro-windows-portable`
+
 ## ساختار فایل‌ها
 
 ```
@@ -289,4 +385,11 @@ src/
     PartPreview.tsx           # پیش‌نمایش SVG لبه‌های ردیف فعال
     icons.tsx                 # آیکون‌های فارسی/نوار/شیار و…
   App.tsx                     # چیدمان صفحه، خلاصهٔ محاسبات، راهنمای علائم
+capacitor.config.ts           # پیکربندی Capacitor (appId/appName/webDir=dist)
+android/                      # پروژهٔ بومی اندروید (Capacitor)
+desktop/
+  main.cjs                    # فرایند اصلی Electron + پروتکل app://
+  prepare.mjs                 # کپی dist → desktop/web
+  package.json                # electron-builder: خروجی portable EXE
+scripts/android-apk.mjs       # اجرای Gradle Wrapper از ریشهٔ پروژه
 ```

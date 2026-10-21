@@ -1,0 +1,50 @@
+name: Build Windows Portable EXE
+
+# ساخت فایل اجرایی پرتابل ویندوز بدون نصب ابزار روی سیستم شما:
+# GitHub → Actions → Build Windows Portable EXE → Run workflow
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build-exe:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web bundle (native base)
+        run: npm run build:app
+
+      - name: Copy web bundle into desktop package
+        run: node desktop/prepare.mjs
+
+      - name: Install Electron dependencies
+        run: npm --prefix desktop install
+
+      - name: Build portable EXE
+        run: npm --prefix desktop run dist:win
+        env:
+          # بدون امضای دیجیتال؛ برای امضا CSC_LINK/CSC_KEY_PASSWORD را تنظیم کنید
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - name: Upload portable EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: a-cut-2dpro-windows-portable
+          path: desktop/release/*.exe
+          if-no-files-found: error
