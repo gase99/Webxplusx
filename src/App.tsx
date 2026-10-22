@@ -4,6 +4,7 @@ import InstallButton from './components/InstallButton';
 import LayoutPanel from './components/LayoutPanel';
 import ProjectManager from './components/ProjectManager';
 import PartPreview from './components/PartPreview';
+import UpdateToast from './components/UpdateToast';
 import {
   BandIcon,
   FarsiIcon,
@@ -378,7 +379,7 @@ export default function App() {
           <StatCard
             title="لبهٔ فارسی ۴۵°"
             value={faNumber.format(stats.farsiEdges)}
-            hint="لبه — روی نقشه: خط ممتد مشکی + 45°"
+            hint="لبه — روی نقشه: حرف «ف» کنار عدد جهت"
             accent="text-rose-700"
           />
           <StatCard
@@ -441,8 +442,8 @@ export default function App() {
             </h2>
             <PartPreview part={activePart} />
             <p className="mt-1 text-center text-xs leading-6 text-slate-500">
-              در <strong className="text-slate-700">فاز ۳ (نقشهٔ برش)</strong> لبه‌های فارسی دقیقاً
-              رسم می‌شوند: <span className="font-bold text-slate-900">خط ممتد مشکی + مثلث پر + برچسب 45°</span>
+              در <strong className="text-slate-700">نقشهٔ برش (فاز ۳)</strong> همین عملیات با علائم
+              استاندارد دقیقاً زیر عدد هر جهت می‌آید: <span className="font-bold text-slate-900">خط ممتد = نوار، خط‌چین = شیار، «ف» = فارسی ۴۵°</span>
             </p>
           </div>
 
@@ -458,7 +459,7 @@ export default function App() {
                   <span className="text-slate-500"> — </span>
                   <span dir="ltr" className="text-slate-500">Edge Banding</span>
                   <br />
-                  <span className="text-slate-600">در پیش‌نمایش ردیف خط سبزآبی دارد؛ در نقشهٔ چاپی سیاه‌وسفید با برچسب خوانای «PVC» در امتداد همان لبه نشان داده می‌شود.</span>
+                  <span className="text-slate-600">در پیش‌نمایش ردیف خط سبزآبی دارد؛ در نقشهٔ برش با یک خط ممتد ضخیم دقیقاً زیر عدد همان جهت نشان داده می‌شود (دو خط ممتد یعنی هر دو لبه).</span>
                 </p>
               </li>
               <li className="flex gap-3">
@@ -471,8 +472,7 @@ export default function App() {
                   <span dir="ltr" className="text-slate-500">Miter Cut</span>
                   <br />
                   <span className="text-slate-600">
-                    کنار ورودی آن آیکون مثلث/خط مورب هست؛ روی نقشهٔ برش با خط ممتد مشکی، مثلث پر و برچسب{' '}
-                    <strong className="text-slate-900">45°</strong> رندر می‌شود تا اپراتور متوجه شود.
+                    کنار ورودی آن آیکون مثلث/خط مورب هست؛ روی نقشهٔ برش با حرف «ف» کنار عدد همان جهت نشان داده می‌شود تا اپراتور متوجه شود («ف ف» یعنی هر دو لبه).
                   </span>
                 </p>
               </li>
@@ -484,7 +484,7 @@ export default function App() {
                   <strong className="text-amber-800">شیار</strong>
                   <span className="text-slate-500"> — برای جاگذاری ورق ۳ میلی‌متری (پشت‌بند)</span>
                   <br />
-                  <span className="text-slate-600">در پیش‌نمایش خط‌چین کهربایی است؛ در نقشهٔ سیاه‌وسفید خط‌چین ضخیم مشکی را ۱۰ میلی‌متر داخل قطعه و ۱۰ میلی‌متر دور از گوشه‌ها می‌بینید.</span>
+                  <span className="text-slate-600">در پیش‌نمایش خط‌چین کهربایی است؛ در نقشهٔ برش با خط‌چین مشکی دقیقاً زیر عدد همان جهت نشان داده می‌شود (دو خط‌چین یعنی هر دو لبه).</span>
                 </p>
               </li>
             </ul>
@@ -506,6 +506,9 @@ export default function App() {
           پروژه‌ها در دیتابیس مرورگر (IndexedDB) ذخیره می‌شوند، فضای کاری فعلی به‌صورت خودکار نگه داشته می‌شود و برنامه آفلاین نیز قابل نصب است.
         </footer>
       </main>
+
+      {/* اعلان «نسخهٔ جدید برنامه آماده است» (PWA — رویداد onNeedRefresh) */}
+      <UpdateToast />
     </div>
   );
 }

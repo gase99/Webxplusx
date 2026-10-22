@@ -386,8 +386,10 @@ export default function CuttingMap({ sheets, stock, parts, forPrint = false }: C
           </span>
         </h3>
 
-        <ul className="map-legend flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold text-slate-700">
-          <li className="font-extrabold text-slate-800">راهنمای علائم:</li>
+        {/* کادر راهنمای علائم — در پیش‌نمایش صفحه و سند چاپی (زیر هدر سند) هر دو دیده می‌شود */}
+        <div className="map-legend-box rounded-lg border-2 border-slate-900 bg-white px-3 py-2">
+          <span className="map-legend-title mb-1 block text-xs font-black text-slate-900">راهنمای علائم</span>
+          <ul className="map-legend flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold text-slate-700">
           <li className="flex items-center gap-1">
             <svg viewBox="0 0 26 8" className="h-2.5 w-7" aria-hidden="true">
               <line x1="2" y1="4" x2="24" y2="4" stroke="#000" strokeWidth="3" strokeLinecap="round" />
@@ -414,7 +416,8 @@ export default function CuttingMap({ sheets, stock, parts, forPrint = false }: C
           <li className="text-slate-500">
             علامت زیر «طول» برای لبه‌های طول و زیر «عرض» برای لبه‌های عرض است؛ دو خط (یا «ف ف») یعنی هر دو لبه
           </li>
-        </ul>
+          </ul>
+        </div>
 
         {!forPrint && (
           <div className="ms-auto flex items-center gap-1" role="group" aria-label="زوم نقشه">

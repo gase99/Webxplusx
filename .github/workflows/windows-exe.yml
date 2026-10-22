@@ -1,7 +1,15 @@
-name: Build Windows Portable EXE
+name: Build Windows Installer (NSIS)
 
-# ساخت فایل اجرایی پرتابل ویندوز بدون نصب ابزار روی سیستم شما:
-# GitHub → Actions → Build Windows Portable EXE → Run workflow
+# ساخت اینستالر ویندوز (NSIS) بدون نصب ابزار روی سیستم شما:
+#   • دستی: GitHub → Actions → Build Windows Installer (NSIS) → Run workflow
+#     (خروجی فقط به‌صورت artifact آپلود می‌شود، ریلیز ساخته نمی‌شود)
+#   • انتشار رسمی: پوش تگ نسخه (مثلاً v0.2.0) → علاوه بر artifact، یک
+#     GitHub Release منتشر می‌شود که شامل فایل نصب + ‏latest.yml + ‏blockmap
+#     است؛ نسخه‌های نصب‌شده روی سیستم کاربران از طریق electron-updater
+#     همین ریلیز را می‌بینند و خودکار بروز می‌شوند.
+#
+# پیش‌شرط هر انتشار: فیلد version در desktop/package.json باید با تگ یکی
+# باشد (تگ v0.2.0 ↔ نسخهٔ 0.2.0)، چون مقایسهٔ نسخه‌ها با latest.yml است.
 on:
   workflow_dispatch:
   push:
@@ -9,7 +17,7 @@ on:
       - 'v*'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-exe:
@@ -36,15 +44,34 @@ jobs:
       - name: Install Electron dependencies
         run: npm --prefix desktop install
 
-      - name: Build portable EXE
+      - name: Build NSIS installer (+ latest.yml for auto-update)
         run: npm --prefix desktop run dist:win
         env:
           # بدون امضای دیجیتال؛ برای امضا CSC_LINK/CSC_KEY_PASSWORD را تنظیم کنید
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - name: Upload portable EXE
+      # هر سه فایل برای آپدیت خودکار لازم‌اند: فایل نصب، آخرین‌نسخه (yml)
+      # و نقشهٔ بلوک‌ها (blockmap) برای دانلود تفاضلی کم‌حجم.
+      - name: Upload installer + update metadata
         uses: actions/upload-artifact@v4
         with:
-          name: a-cut-2dpro-windows-portable
-          path: desktop/release/*.exe
+          name: a-cut-2dpro-windows-installer
+          path: |
+            desktop/release/*.exe
+            desktop/release/*.exe.blockmap
+            desktop/release/latest.yml
           if-no-files-found: error
+
+      # فقط در اجرای تگی: ساخت GitHub Release منتشرشده (غیر draft) تا
+      # electron-updater کاربران آن را با releases/latest پیدا کند.
+      - name: Publish GitHub Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: A-Cut 2Dpro ${{ github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: |
+            desktop/release/*.exe
+            desktop/release/*.exe.blockmap
+            desktop/release/latest.yml

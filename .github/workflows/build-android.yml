@@ -14,6 +14,8 @@ on:
       - '.github/workflows/build-android.yml'
       - 'android/**'
       - 'capacitor.config.ts'
+      # صفحهٔ خطای آفلاین داخل APK بسته‌بندی می‌شود؛ تغییرش یعنی APK تازه
+      - 'public/offline.html'
       - 'package.json'
       - 'package-lock.json'
       - 'vite.config.ts'

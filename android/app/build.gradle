@@ -7,8 +7,11 @@ android {
         applicationId "com.acut.cut2dpro"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // نسخهٔ ۰٫۲٫۰: گذار اپ به حالت Live URL (پوستهٔ آنلاین روی GitHub Pages)؛
+        // از این نسخه به بعد آپدیت‌های برنامه از طریق وب می‌رسند و versionCode
+        // فقط وقتی باید بالا برود که خود پوستهٔ بومی (Capacitor/پلاگین‌ها) تغییر کند.
+        versionCode 2
+        versionName "0.2.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
