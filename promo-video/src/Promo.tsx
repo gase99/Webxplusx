@@ -33,7 +33,7 @@ export const PROMO_DURATION_FRAMES = SCENE_DURATIONS.reduce((a, b) => a + b, 0);
 const VOICE_RATE = 1.2;
 const VOICE_OFFSET_FRAMES = 8; // شروع صدا، چند فریم بعد از ورود صحنه
 const VOICE_TAIL_FRAMES = 16; // نفس پایانی صحنه بعد از تمام‌شدن جمله
-const AUDIO_SECONDS = [7.24, 9.3, 6.61, 9.17, 9.12, 8.1, 6.35] as const;
+const AUDIO_SECONDS = [7.24, 9.3, 6.61, 9.04, 9.12, 8.1, 6.35] as const;
 
 const voicedDuration = (sceneIndex: number): number => {
   const needed = Math.ceil(

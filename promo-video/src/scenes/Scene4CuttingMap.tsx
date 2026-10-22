@@ -5,7 +5,7 @@ import { SheetMap } from '../components/SheetMap';
 import { FONT_FAMILY } from '../lib/font';
 import { COLORS } from '../lib/theme';
 
-/** صحنهٔ ۴ — نقشهٔ برش سیاه‌وسفید: برچسب‌های درشت داخل قطعه + هاشور پرت + زوم روی یک قطعه */
+/** صحنهٔ ۴ — نقشهٔ برش سیاه‌وسفید: علائم خطی زیر ابعاد + هاشور پرت + زوم روی یک قطعه */
 export const Scene4CuttingMap: React.FC = () => {
   const frame = useCurrentFrame();
 
@@ -99,7 +99,7 @@ export const Scene4CuttingMap: React.FC = () => {
             boxShadow: '0 16px 44px rgba(0,0,0,0.35)',
           }}
         >
-          نام عملیات، درشت داخل قطعه و کنار همان لبه
+          علائم خطی عملیات، درست زیر همان عدد
         </div>
       </div>
 
@@ -119,7 +119,7 @@ export const Scene4CuttingMap: React.FC = () => {
         {[
           { label: 'هاشور = پرت / باقی‌ماندهٔ ورق', color: COLORS.slate300 },
           { label: 'چاپ سیاه‌وسفید، خوانا در کارگاه', color: COLORS.skySoft },
-          { label: 'نام و ابعاد هر قطعه روی خودش', color: COLORS.emeraldLight },
+          { label: 'راهنمای علائم: ▬ نوار ┄ شیار «ف» فارسی', color: COLORS.emeraldLight },
         ].map((chip) => (
           <span
             key={chip.label}
@@ -138,7 +138,7 @@ export const Scene4CuttingMap: React.FC = () => {
         ))}
       </div>
 
-      <Caption text="نقشهٔ سیاه‌وسفید؛ ابعاد و عملیات هر لبه درشت داخل قطعه، پرت با هاشور" delay={12} />
+      <Caption text="نقشهٔ سیاه‌وسفید؛ علائم خطی عملیات زیر ابعاد، پرت با هاشور" delay={12} />
     </AbsoluteFill>
   );
 };

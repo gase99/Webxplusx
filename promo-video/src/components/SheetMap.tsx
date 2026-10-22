@@ -1,76 +1,62 @@
 import React from 'react';
 import { Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
 import { FONT_FAMILY } from '../lib/font';
-import { DEMO_PARTS, SHEET_H, SHEET_W, type DemoPart, type OpSide } from '../lib/layout';
+import { DEMO_PARTS, SHEET_H, SHEET_W, type DemoPart, type OpLabel, type OpSide } from '../lib/layout';
 import { COLORS } from '../lib/theme';
 
 /**
  * نقشهٔ ورق به سبک خود نرم‌افزار:
  *  - حالت color: قطعات رنگی/روشن برای انیمیشن «محاسبهٔ چیدمان» (صحنهٔ ۳)
- *  - حالت bw: سیاه‌وسفید کارگاهی با هاشور پرت و برچسب‌های درشت «داخل» قطعه‌ها
- *    (صحنهٔ ۴) — دقیقاً مثل نقشهٔ فعلی برنامه: نام + «طول/عرض» در مرکز و
- *    نام عملیات هر لبه موازی با همان لبه و با چیدمان پلکانی در صورت چند عملیات.
+ *  - حالت bw: سیاه‌وسفید کارگاهی با هاشور پرت (صحنهٔ ۴) — دقیقاً مثل نقشهٔ
+ *    فعلی برنامه: نام + «طول/عرض» درشت در مرکز و «علائم خطی» عملیات زیر هر
+ *    عدد (خط ممتد = نوار، خط‌چین = شیار، حرف «ف» کنار عدد = فارسی ۴۵°؛
+ *    دو لبه = علامت دوتایی و ترکیب نوار+شیار زیر هم).
  * قطعات به‌ترتیب، از فریم مشخص‌شده و با فاصلهٔ stagger «فرود» می‌آیند.
  */
 
 const PAD = 10; // دیگر متنی بیرون ورق نیست؛ حاشیه فقط برای قاب سفید
 
-/** بردار «به داخل» قطعه برای هر لبه و بردار در امتداد لبه */
-const INWARD: Record<OpSide, [number, number]> = {
-  top: [0, 1],
-  bottom: [0, -1],
-  left: [1, 0],
-  right: [-1, 0],
-};
-const TANGENT: Record<OpSide, [number, number]> = {
-  top: [1, 0],
-  bottom: [1, 0],
-  left: [0, 1],
-  right: [0, 1],
-};
+/* هندسهٔ علائم زیر ابعاد — نسبت به اندازهٔ فونت همان خط (em)، مثل خود برنامه */
+const SYM_FIRST_EM = 0.66;
+const SYM_STEP_EM = 0.26;
+const SYM_GROUP_GAP_EM = 0.12;
 
-interface InsideLabelSpec {
-  label: string;
-  textX: number;
-  textY: number;
-  rotate: boolean;
-  fontSize: number;
+interface AxisOps {
+  band: number;
+  groove: number;
+  farsi: number;
 }
 
-/** برچسب‌های عملیات «داخل» قطعه؛ موازی با لبه و در چند عملیات به‌صورت پلکانی */
-const insideOpLabels = (part: DemoPart): InsideLabelSpec[] => {
-  const sides: OpSide[] = ['top', 'bottom', 'left', 'right'];
-  const specs: InsideLabelSpec[] = [];
-
-  for (const side of sides) {
-    const ops = part.ops.filter((op) => op.side === side);
-    if (ops.length === 0) continue;
-    const horizontal = side === 'top' || side === 'bottom';
-    const edgeLen = horizontal ? part.w : part.h;
-    const [ix, iy] = INWARD[side];
-    const [tx, ty] = TANGENT[side];
-    const sx = horizontal ? part.x : side === 'left' ? part.x : part.x + part.w;
-    const sy = horizontal ? (side === 'top' ? part.y : part.y + part.h) : part.y;
-
-    ops.forEach((op, index) => {
-      const fontSize = 20;
-      const inward = fontSize * 0.8 + index * fontSize * 1.35;
-      const textW = op.label.length * fontSize * 0.62;
-      const along =
-        op.label === 'فارسی ۴۵°'
-          ? Math.min(edgeLen / 2, textW / 2 + fontSize * 0.6)
-          : edgeLen / 2;
-      specs.push({
-        label: op.label,
-        textX: sx + tx * along + ix * inward,
-        textY: sy + ty * along + iy * inward,
-        rotate: !horizontal,
-        fontSize,
-      });
-    });
-  }
-  return specs;
+/** شمارندهٔ عملیات یک محور از روی لبه‌های نمونه (محور طول قطعه یا عرض آن) */
+const axisOps = (part: DemoPart, sides: OpSide[]): AxisOps => {
+  const count = (label: OpLabel) =>
+    part.ops.filter((op) => sides.includes(op.side) && op.label === label).length;
+  return { band: count('نوار'), groove: count('شیار'), farsi: count('فارسی ۴۵°') };
 };
+
+interface CenterLine {
+  text: string;
+  size: number;
+  ltr?: boolean;
+  /** علائم عملیات زیر این خط (فقط برای خط‌های طول/عرض در حالت bw) */
+  sym?: AxisOps;
+  digitText?: string;
+}
+
+const farsiSuffixOf = (ops?: AxisOps): string =>
+  ops && ops.farsi > 0 ? ` ${Array.from({ length: ops.farsi }, () => 'ف').join(' ')}` : '';
+
+const symBottomEm = (line: CenterLine): number => {
+  const rows = line.sym ? line.sym.band + line.sym.groove : 0;
+  if (rows === 0) return 0.5;
+  return (
+    SYM_FIRST_EM +
+    (rows - 1) * SYM_STEP_EM +
+    (line.sym && line.sym.band > 0 && line.sym.groove > 0 ? SYM_GROUP_GAP_EM : 0) +
+    0.08
+  );
+};
+const stepPxOf = (line: CenterLine): number => (symBottomEm(line) + 0.68) * line.size;
 
 interface SheetMapProps {
   mode: 'color' | 'bw';
@@ -78,9 +64,9 @@ interface SheetMapProps {
   startFrame?: number;
   /** فاصلهٔ فریم بین فرود قطعات */
   stagger?: number;
-  /** نمایش نام عملیات لبه‌ها داخل قطعات (صحنهٔ ۴) */
+  /** نمایش علائم خطی عملیات زیر ابعاد (صحنهٔ ۴) */
   showOps?: boolean;
-  /** فریم شروع ظاهرشدن برچسب‌های عملیات */
+  /** فریم شروع ظاهرشدن علائم عملیات */
   opsStartFrame?: number;
   /** شمارهٔ قطعه‌ای که با حلقهٔ سبز برجسته شود (صحنهٔ ۴) */
   highlightIndex?: number;
@@ -153,20 +139,26 @@ export const SheetMap: React.FC<SheetMapProps> = ({
         const cy = part.y + part.h / 2;
         const [dimL, dimW] = part.dims.split('×');
 
-        // متن مرکز مثل خود برنامه: قطعهٔ جادار = نام + «طول: …» + «عرض: …»؛
-        // قطعهٔ کم‌ارتفاع = فقط ابعاد فشرده («380×120»)
-        const centerLines: { text: string; size: number; ltr?: boolean }[] =
+        // محور طول قطعه: برای قطعه‌ای که عمودی کشیده شده (درب بلند) محور طول
+        // همان محور عمودی نقشه است و لبه‌هایش چپ/راست‌اند؛ بقیه افقی‌اند.
+        const drawnRotated = part.h > part.w;
+        const lenOps = axisOps(part, drawnRotated ? ['left', 'right'] : ['top', 'bottom']);
+        const widOps = axisOps(part, drawnRotated ? ['top', 'bottom'] : ['left', 'right']);
+
+        // متن مرکز مثل خود برنامه: قطعهٔ جادار = نام + «طول: …» + «عرض: …»
+        // با علائم خطی زیر هر عدد؛ قطعهٔ کم‌ارتفاع = فقط ابعاد فشرده
+        const centerLines: CenterLine[] =
           part.w >= 190 && part.h >= 125
             ? [
                 { text: part.name, size: 23 },
-                { text: `طول: ${dimL}`, size: 21 },
-                { text: `عرض: ${dimW}`, size: 21 },
+                { text: `طول: ${dimL}`, size: 21, sym: lenOps, digitText: dimL },
+                { text: `عرض: ${dimW}`, size: 21, sym: widOps, digitText: dimW },
               ]
             : part.w >= 190 && part.h >= 66
               ? [{ text: part.dims, size: 19, ltr: true }]
               : [];
         // در حالت رنگی (صحنهٔ ۳) نام + ابعاد فشرده خواناتر است
-        const lines = bw
+        const lines: CenterLine[] = bw
           ? centerLines
           : part.w >= 190 && part.h >= 72
             ? [
@@ -174,7 +166,20 @@ export const SheetMap: React.FC<SheetMapProps> = ({
                 { text: part.dims, size: 19, ltr: true },
               ]
             : [];
-        const lineStep = 27;
+
+        // مراکز عمودی خط‌ها با احتساب ردیف‌های علائم
+        const centers: number[] = [];
+        if (lines.length > 0) {
+          const totalH =
+            lines.slice(0, -1).reduce((sum, l) => sum + stepPxOf(l), 0) +
+            lines[0].size * 0.5 +
+            symBottomEm(lines[lines.length - 1]) * lines[lines.length - 1].size;
+          let cursor = cy - totalH / 2 + lines[0].size * 0.5;
+          for (const l of lines) {
+            centers.push(cursor);
+            cursor += stepPxOf(l);
+          }
+        }
 
         return (
           <g
@@ -191,48 +196,70 @@ export const SheetMap: React.FC<SheetMapProps> = ({
               stroke={bw ? '#000000' : i % 2 === 0 ? COLORS.sky : COLORS.emerald}
               strokeWidth={bw ? 2.6 : 2.4}
             />
-            {lines.map((line, li) => (
-              <text
-                key={li}
-                x={cx}
-                y={cy + (li - (lines.length - 1) / 2) * lineStep}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fontSize={line.size}
-                fontWeight={800}
-                fill={ink}
-                stroke="#ffffff"
-                strokeWidth={line.size * 0.14}
-                strokeLinejoin="round"
-                paintOrder="stroke"
-                style={{ fontFamily: FONT_FAMILY, direction: line.ltr ? 'ltr' : 'rtl' }}
-              >
-                {line.text}
-              </text>
-            ))}
-            {/* نام عملیات لبه‌ها داخل خود قطعه (همراه بدنه می‌نشیند) */}
-            {showOps &&
-              insideOpLabels(part).map((spec) => (
-                <text
-                  key={`${spec.label}-${spec.textX}-${spec.textY}`}
-                  x={spec.textX}
-                  y={spec.textY}
-                  transform={spec.rotate ? `rotate(-90 ${spec.textX} ${spec.textY})` : undefined}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fontSize={spec.fontSize}
-                  fontWeight={800}
-                  fill={ink}
-                  stroke="#ffffff"
-                  strokeWidth={3.4}
-                  strokeLinejoin="round"
-                  paintOrder="stroke"
-                  opacity={opsOpacity}
-                  style={{ fontFamily: FONT_FAMILY, direction: 'rtl' }}
-                >
-                  {spec.label}
-                </text>
-              ))}
+            {lines.map((line, li) => {
+              const yLine = centers[li];
+              const suffix = bw && showOps ? farsiSuffixOf(line.sym) : '';
+              // مرکز عدد در متن راست‌به‌چپ (ف‌ها سمت چپ عدد می‌نشینند)
+              const fullText = line.text + suffix;
+              const lineW = fullText.length * line.size * 0.6;
+              const digitsW = (line.digitText ?? '').length * line.size * 0.6;
+              const farsiW = suffix.length * line.size * 0.6;
+              const ux = cx - lineW / 2 + farsiW + digitsW / 2;
+              const uHalf = Math.max(digitsW * 0.62, line.size * 0.55);
+
+              const rows: { y: number; dashed: boolean }[] = [];
+              if (bw && showOps && line.sym) {
+                let off = SYM_FIRST_EM;
+                for (let k = 0; k < line.sym.band; k += 1) {
+                  rows.push({ y: yLine + off * line.size, dashed: false });
+                  off += SYM_STEP_EM;
+                }
+                if (line.sym.band > 0 && line.sym.groove > 0) off += SYM_GROUP_GAP_EM;
+                for (let k = 0; k < line.sym.groove; k += 1) {
+                  rows.push({ y: yLine + off * line.size, dashed: true });
+                  off += SYM_STEP_EM;
+                }
+              }
+
+              return (
+                <g key={li}>
+                  <text
+                    x={cx}
+                    y={yLine}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fontSize={line.size}
+                    fontWeight={800}
+                    fill={ink}
+                    stroke="#ffffff"
+                    strokeWidth={line.size * 0.14}
+                    strokeLinejoin="round"
+                    paintOrder="stroke"
+                    style={{ fontFamily: FONT_FAMILY, direction: line.ltr ? 'ltr' : 'rtl' }}
+                  >
+                    {line.text}
+                    {suffix && <tspan opacity={opsOpacity}>{suffix}</tspan>}
+                  </text>
+                  {rows.length > 0 && (
+                    <g opacity={opsOpacity}>
+                      {rows.map((row, r) => (
+                        <line
+                          key={r}
+                          x1={ux - uHalf}
+                          x2={ux + uHalf}
+                          y1={row.y}
+                          y2={row.y}
+                          stroke={ink}
+                          strokeWidth={Math.max(1.4, line.size * 0.105)}
+                          strokeLinecap="round"
+                          strokeDasharray={row.dashed ? `${line.size * 0.3} ${line.size * 0.2}` : undefined}
+                        />
+                      ))}
+                    </g>
+                  )}
+                </g>
+              );
+            })}
             {i === highlightIndex && (
               <rect
                 x={part.x - 6}
