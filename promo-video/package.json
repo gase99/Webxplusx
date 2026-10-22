@@ -6,6 +6,7 @@
   "scripts": {
     "studio": "remotion studio src/index.ts",
     "render": "remotion render src/index.ts Promo out/A-Cut-2Dpro-promo.mp4",
+    "render:voiced": "remotion render src/index.ts PromoVoiced out/A-Cut-2Dpro-promo-voiced.mp4",
     "render:poster": "remotion still src/index.ts Promo out/poster.png --frame=95",
     "typecheck": "tsc --noEmit"
   },

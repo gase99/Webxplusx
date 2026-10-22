@@ -59,18 +59,24 @@ const Cell: React.FC<{
   </div>
 );
 
-/** صحنهٔ ۲ — ورود داده: تایپ ابعاد ۱۵۰×۴۵۰ و انتخاب عملیات لبه (۰/۱/۲) */
-export const Scene2DataEntry: React.FC = () => {
+/**
+ * صحنهٔ ۲ — ورود داده: تایپ ابعاد ۱۵۰×۴۵۰ و انتخاب عملیات لبه (۰/۱/۲)
+ * `stretch` در نسخهٔ صدادار سرعت تایپ/انتخاب را متناسب با طولانی‌ترشدن
+ * صحنه کند می‌کند تا با جملهٔ گوینده هم‌گام بماند (۱ = سرعت عادی).
+ */
+export const Scene2DataEntry: React.FC<{ stretch?: number }> = ({ stretch = 1 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  /** ساعت داخلی تایپ/انتخاب عملیات (کندشده با stretch) */
+  const tf = frame / stretch;
 
   const cardIn = spring({ frame, fps, config: { damping: 100, stiffness: 110 } });
 
   // خط زمانی تایپ داخل صحنه
-  const name = typed(frame, 'طبقهٔ کمد', 18, 5);
-  const length = typed(frame, '450', 62, 9);
-  const width = typed(frame, '150', 92, 9);
-  const qty = typed(frame, '6', 118, 9);
+  const name = typed(tf, 'طبقهٔ کمد', 18, 5);
+  const length = typed(tf, '450', 62, 9);
+  const width = typed(tf, '150', 92, 9);
+  const qty = typed(tf, '6', 118, 9);
 
   const ops: { label: string; value: string; from: number; color: string }[] = [
     { label: 'نوار طول', value: '۲', from: 126, color: '#0d9488' },
@@ -136,21 +142,21 @@ export const Scene2DataEntry: React.FC = () => {
 
         {/* ردیف در حال تایپ */}
         <div style={{ display: 'flex', gap: 18, justifyContent: 'center' }}>
-          <Cell width={400} active={frame < 62}>
+          <Cell width={400} active={tf < 62}>
             {name}
-            <Caret visible={frame >= 18 && frame < 62} />
+            <Caret visible={tf >= 18 && tf < 62} />
           </Cell>
-          <Cell width={240} ltr active={frame >= 62 && frame < 92}>
+          <Cell width={240} ltr active={tf >= 62 && tf < 92}>
             {length}
-            <Caret visible={frame >= 62 && frame < 92} />
+            <Caret visible={tf >= 62 && tf < 92} />
           </Cell>
-          <Cell width={240} ltr active={frame >= 92 && frame < 118}>
+          <Cell width={240} ltr active={tf >= 92 && tf < 118}>
             {width}
-            <Caret visible={frame >= 92 && frame < 118} />
+            <Caret visible={tf >= 92 && tf < 118} />
           </Cell>
-          <Cell width={180} ltr active={frame >= 118 && frame < 132}>
+          <Cell width={180} ltr active={tf >= 118 && tf < 132}>
             {qty}
-            <Caret visible={frame >= 118 && frame < 132} />
+            <Caret visible={tf >= 118 && tf < 132} />
           </Cell>
         </div>
 
@@ -165,8 +171,8 @@ export const Scene2DataEntry: React.FC = () => {
         {/* عملیات لبه‌ها با ورودی ۰/۱/۲ */}
         <div style={{ display: 'flex', gap: 18, justifyContent: 'center', marginTop: 34 }}>
           {ops.map((op) => {
-            const p = spring({ frame: frame - op.from, fps, config: { damping: 80, stiffness: 160 } });
-            const on = frame >= op.from;
+            const p = spring({ frame: frame - op.from * stretch, fps, config: { damping: 80, stiffness: 160 } });
+            const on = tf >= op.from;
             return (
               <div
                 key={op.label}
@@ -209,7 +215,7 @@ export const Scene2DataEntry: React.FC = () => {
             fontSize: 27,
             fontWeight: 600,
             color: '#64748b',
-            opacity: interpolate(frame, [120, 140], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
+            opacity: interpolate(tf, [120, 140], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }),
           }}
         >
           ۰ = بدون عملیات ‏·‏ ۱ = یک لبه ‏·‏ ۲ = هر دو لبهٔ مقابل

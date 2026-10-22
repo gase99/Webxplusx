@@ -7,17 +7,20 @@ import { COLORS } from '../lib/theme';
 /**
  * نقشهٔ ورق به سبک خود نرم‌افزار:
  *  - حالت color: قطعات رنگی/روشن برای انیمیشن «محاسبهٔ چیدمان» (صحنهٔ ۳)
- *  - حالت bw: سیاه‌وسفید کارگاهی با هاشور پرت و پیکان عملیات لبه‌ها (صحنهٔ ۴)
+ *  - حالت bw: سیاه‌وسفید کارگاهی با هاشور پرت و برچسب‌های درشت «داخل» قطعه‌ها
+ *    (صحنهٔ ۴) — دقیقاً مثل نقشهٔ فعلی برنامه: نام + «طول/عرض» در مرکز و
+ *    نام عملیات هر لبه موازی با همان لبه و با چیدمان پلکانی در صورت چند عملیات.
  * قطعات به‌ترتیب، از فریم مشخص‌شده و با فاصلهٔ stagger «فرود» می‌آیند.
  */
 
-const PAD = 46; // حاشیهٔ دور ورق برای پیکان‌ها و متن‌ها
+const PAD = 10; // دیگر متنی بیرون ورق نیست؛ حاشیه فقط برای قاب سفید
 
-const NORMAL: Record<OpSide, [number, number]> = {
-  top: [0, -1],
-  bottom: [0, 1],
-  left: [-1, 0],
-  right: [1, 0],
+/** بردار «به داخل» قطعه برای هر لبه و بردار در امتداد لبه */
+const INWARD: Record<OpSide, [number, number]> = {
+  top: [0, 1],
+  bottom: [0, -1],
+  left: [1, 0],
+  right: [-1, 0],
 };
 const TANGENT: Record<OpSide, [number, number]> = {
   top: [1, 0],
@@ -26,72 +29,47 @@ const TANGENT: Record<OpSide, [number, number]> = {
   right: [0, 1],
 };
 
-/** جای لنگر پیکان روی هر لبه (مثل خود برنامه) تا برچسب لبه‌های روبه‌رو روی هم نیفتد */
-const SIDE_ANCHOR: Record<OpSide, number> = {
-  top: 0.32,
-  bottom: 0.68,
-  left: 0.34,
-  right: 0.66,
-};
+interface InsideLabelSpec {
+  label: string;
+  textX: number;
+  textY: number;
+  rotate: boolean;
+  fontSize: number;
+}
 
-/** پیکان مشکی بیرون لبه + نام عملیات (همان قراردادی که در نقشهٔ برنامه است) */
-const ArrowMarker: React.FC<{ part: DemoPart; side: OpSide; label: string; bw: boolean }> = ({
-  part,
-  side,
-  label,
-  bw,
-}) => {
-  const horizontal = side === 'top' || side === 'bottom';
-  const [nx, ny] = NORMAL[side];
-  const [tx, ty] = TANGENT[side];
-  const edgeLen = horizontal ? part.w : part.h;
-  const along = edgeLen * SIDE_ANCHOR[side];
-  const ax = horizontal ? part.x + along : side === 'left' ? part.x : part.x + part.w;
-  const ay = horizontal ? (side === 'top' ? part.y : part.y + part.h) : part.y + along;
-  const at = (out: number, lat = 0): [number, number] => [ax + nx * out + tx * lat, ay + ny * out + ty * lat];
+/** برچسب‌های عملیات «داخل» قطعه؛ موازی با لبه و در چند عملیات به‌صورت پلکانی */
+const insideOpLabels = (part: DemoPart): InsideLabelSpec[] => {
+  const sides: OpSide[] = ['top', 'bottom', 'left', 'right'];
+  const specs: InsideLabelSpec[] = [];
 
-  const gap = 4;
-  const len = 17;
-  const head = 8.5;
-  const halfShaft = 2.6;
-  const halfHead = 7;
-  const points = [
-    at(gap, 0),
-    at(gap + head, -halfHead),
-    at(gap + head, -halfShaft),
-    at(gap + len, -halfShaft),
-    at(gap + len, halfShaft),
-    at(gap + head, halfShaft),
-    at(gap + head, halfHead),
-  ]
-    .map(([px, py]) => `${px.toFixed(1)},${py.toFixed(1)}`)
-    .join(' ');
+  for (const side of sides) {
+    const ops = part.ops.filter((op) => op.side === side);
+    if (ops.length === 0) continue;
+    const horizontal = side === 'top' || side === 'bottom';
+    const edgeLen = horizontal ? part.w : part.h;
+    const [ix, iy] = INWARD[side];
+    const [tx, ty] = TANGENT[side];
+    const sx = horizontal ? part.x : side === 'left' ? part.x : part.x + part.w;
+    const sy = horizontal ? (side === 'top' ? part.y : part.y + part.h) : part.y;
 
-  const [textX, textY] = at(gap + len + 13);
-  const ink = bw ? '#000000' : COLORS.ink;
-
-  return (
-    <g>
-      <polygon points={points} fill={ink} stroke="#ffffff" strokeWidth={1.6} strokeLinejoin="round" />
-      <text
-        x={textX}
-        y={textY}
-        transform={horizontal ? undefined : `rotate(-90 ${textX} ${textY})`}
-        textAnchor="middle"
-        dominantBaseline="middle"
-        fontSize={19}
-        fontWeight={800}
-        fill={ink}
-        stroke="#ffffff"
-        strokeWidth={3.4}
-        strokeLinejoin="round"
-        paintOrder="stroke"
-        style={{ fontFamily: FONT_FAMILY, direction: 'rtl' }}
-      >
-        {label}
-      </text>
-    </g>
-  );
+    ops.forEach((op, index) => {
+      const fontSize = 20;
+      const inward = fontSize * 0.8 + index * fontSize * 1.35;
+      const textW = op.label.length * fontSize * 0.62;
+      const along =
+        op.label === 'فارسی ۴۵°'
+          ? Math.min(edgeLen / 2, textW / 2 + fontSize * 0.6)
+          : edgeLen / 2;
+      specs.push({
+        label: op.label,
+        textX: sx + tx * along + ix * inward,
+        textY: sy + ty * along + iy * inward,
+        rotate: !horizontal,
+        fontSize,
+      });
+    });
+  }
+  return specs;
 };
 
 interface SheetMapProps {
@@ -100,9 +78,10 @@ interface SheetMapProps {
   startFrame?: number;
   /** فاصلهٔ فریم بین فرود قطعات */
   stagger?: number;
-  showArrows?: boolean;
-  /** فریم شروع ظاهرشدن پیکان‌ها */
-  arrowStartFrame?: number;
+  /** نمایش نام عملیات لبه‌ها داخل قطعات (صحنهٔ ۴) */
+  showOps?: boolean;
+  /** فریم شروع ظاهرشدن برچسب‌های عملیات */
+  opsStartFrame?: number;
   /** شمارهٔ قطعه‌ای که با حلقهٔ سبز برجسته شود (صحنهٔ ۴) */
   highlightIndex?: number;
   highlightFromFrame?: number;
@@ -112,8 +91,8 @@ export const SheetMap: React.FC<SheetMapProps> = ({
   mode,
   startFrame = 0,
   stagger = 13,
-  showArrows = false,
-  arrowStartFrame = 0,
+  showOps = false,
+  opsStartFrame = 0,
   highlightIndex = -1,
   highlightFromFrame = 0,
 }) => {
@@ -122,8 +101,8 @@ export const SheetMap: React.FC<SheetMapProps> = ({
   const bw = mode === 'bw';
   const ink = bw ? '#000000' : COLORS.ink;
 
-  const arrowOpacity = showArrows
-    ? interpolate(frame, [arrowStartFrame, arrowStartFrame + 16], [0, 1], {
+  const opsOpacity = showOps
+    ? interpolate(frame, [opsStartFrame, opsStartFrame + 16], [0, 1], {
         extrapolateLeft: 'clamp',
         extrapolateRight: 'clamp',
         easing: Easing.out(Easing.cubic),
@@ -172,7 +151,30 @@ export const SheetMap: React.FC<SheetMapProps> = ({
         const scale = 0.92 + p * 0.08;
         const cx = part.x + part.w / 2;
         const cy = part.y + part.h / 2;
-        const big = part.w >= 190 && part.h >= 72;
+        const [dimL, dimW] = part.dims.split('×');
+
+        // متن مرکز مثل خود برنامه: قطعهٔ جادار = نام + «طول: …» + «عرض: …»؛
+        // قطعهٔ کم‌ارتفاع = فقط ابعاد فشرده («380×120»)
+        const centerLines: { text: string; size: number; ltr?: boolean }[] =
+          part.w >= 190 && part.h >= 125
+            ? [
+                { text: part.name, size: 23 },
+                { text: `طول: ${dimL}`, size: 21 },
+                { text: `عرض: ${dimW}`, size: 21 },
+              ]
+            : part.w >= 190 && part.h >= 66
+              ? [{ text: part.dims, size: 19, ltr: true }]
+              : [];
+        // در حالت رنگی (صحنهٔ ۳) نام + ابعاد فشرده خواناتر است
+        const lines = bw
+          ? centerLines
+          : part.w >= 190 && part.h >= 72
+            ? [
+                { text: part.name, size: 23 },
+                { text: part.dims, size: 19, ltr: true },
+              ]
+            : [];
+        const lineStep = 27;
 
         return (
           <g
@@ -189,34 +191,48 @@ export const SheetMap: React.FC<SheetMapProps> = ({
               stroke={bw ? '#000000' : i % 2 === 0 ? COLORS.sky : COLORS.emerald}
               strokeWidth={bw ? 2.6 : 2.4}
             />
-            {big && (
-              <>
+            {lines.map((line, li) => (
+              <text
+                key={li}
+                x={cx}
+                y={cy + (li - (lines.length - 1) / 2) * lineStep}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize={line.size}
+                fontWeight={800}
+                fill={ink}
+                stroke="#ffffff"
+                strokeWidth={line.size * 0.14}
+                strokeLinejoin="round"
+                paintOrder="stroke"
+                style={{ fontFamily: FONT_FAMILY, direction: line.ltr ? 'ltr' : 'rtl' }}
+              >
+                {line.text}
+              </text>
+            ))}
+            {/* نام عملیات لبه‌ها داخل خود قطعه (همراه بدنه می‌نشیند) */}
+            {showOps &&
+              insideOpLabels(part).map((spec) => (
                 <text
-                  x={cx}
-                  y={cy - 13}
+                  key={`${spec.label}-${spec.textX}-${spec.textY}`}
+                  x={spec.textX}
+                  y={spec.textY}
+                  transform={spec.rotate ? `rotate(-90 ${spec.textX} ${spec.textY})` : undefined}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fontSize={23}
+                  fontSize={spec.fontSize}
                   fontWeight={800}
                   fill={ink}
-                  style={{ fontFamily: FONT_FAMILY }}
+                  stroke="#ffffff"
+                  strokeWidth={3.4}
+                  strokeLinejoin="round"
+                  paintOrder="stroke"
+                  opacity={opsOpacity}
+                  style={{ fontFamily: FONT_FAMILY, direction: 'rtl' }}
                 >
-                  {part.name}
+                  {spec.label}
                 </text>
-                <text
-                  x={cx}
-                  y={cy + 15}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fontSize={19}
-                  fontWeight={600}
-                  fill={ink}
-                  style={{ fontFamily: FONT_FAMILY, direction: 'ltr' }}
-                >
-                  {part.dims}
-                </text>
-              </>
-            )}
+              ))}
             {i === highlightIndex && (
               <rect
                 x={part.x - 6}
@@ -234,17 +250,6 @@ export const SheetMap: React.FC<SheetMapProps> = ({
           </g>
         );
       })}
-
-      {/* پیکان‌های عملیات روی همهٔ قطعات (بالای بدنه‌ها) */}
-      {showArrows && (
-        <g opacity={arrowOpacity}>
-          {DEMO_PARTS.flatMap((part, i) =>
-            part.ops.map((op) => (
-              <ArrowMarker key={`${i}-${op.side}-${op.label}`} part={part} side={op.side} label={op.label} bw={bw} />
-            )),
-          )}
-        </g>
-      )}
 
       {/* کادر نهایی ورق بالای همه‌چیز */}
       <rect x={0} y={0} width={SHEET_W} height={SHEET_H} fill="none" stroke={ink} strokeWidth={3.2} />

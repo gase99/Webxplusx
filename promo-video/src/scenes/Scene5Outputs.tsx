@@ -175,7 +175,7 @@ const LabelsThumb: React.FC = () => (
   </div>
 );
 
-/** صحنهٔ ۵ — خروجی‌ها: چاپ A4 یک‌صفحه‌ای + DXF + لیبل‌ها (+ PDF موبایل) */
+/** صحنهٔ ۵ — خروجی‌ها: چاپ A4 تفکیک‌شده + DXF + لیبل‌ها (+ PDF موبایل) */
 export const Scene5Outputs: React.FC = () => {
   return (
     <AbsoluteFill style={{ fontFamily: FONT_FAMILY }}>
@@ -205,7 +205,7 @@ export const Scene5Outputs: React.FC = () => {
           gap: 34,
         }}
       >
-        <Card title="چاپ یک‌صفحه‌ای A4" subtitle="نقشه + لیست قطعات + فاکتور متریال" accent={COLORS.sky} delay={6}>
+        <Card title="چاپ A4 تفکیک‌شده" subtitle="هر ورق روی برگهٔ جدا + لیست قطعات و فاکتور" accent={COLORS.sky} delay={6}>
           <PrintSheetThumb />
         </Card>
         <Card title="فایل DXF" subtitle="لایه‌های جدا برای دستگاه CNC" accent={COLORS.emerald} delay={20}>

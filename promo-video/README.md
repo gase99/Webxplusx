@@ -34,8 +34,14 @@ npm install
 # ۱) پیش‌نمایش زنده و ویرایش در مرورگر (Remotion Studio)
 npm run studio
 
-# ۲) رندر ویدیوی نهایی (خروجی: out/A-Cut-2Dpro-promo.mp4)
+# ۲) رندر ویدیوی نهاییِ بدون صدا — ۴۰ ثانیه (خروجی: out/A-Cut-2Dpro-promo.mp4)
 npm run render
+
+# ۲ب) رندر نسخهٔ صدادار با گویندگی فارسی — حدود ۵۳ ثانیه
+npm run render:voiced
+# خروجی: out/A-Cut-2Dpro-promo-voiced.mp4
+# (فایل‌های صدای هر صحنه در public/voice/scene1.mp3 تا scene7.mp3 هستند؛
+#  طول هر صحنه خودکار بر اساس مدت همان فایل تنظیم می‌شود)
 
 # معادل مستقیم همان دستور:
 npx remotion render src/index.ts Promo out/A-Cut-2Dpro-promo.mp4
@@ -59,10 +65,15 @@ npx remotion still src/index.ts Promo out/poster.png --frame=515
 - **رنگ‌ها:** `src/lib/theme.ts` — **فونت:** `src/lib/font.ts` و فایل‌ها در `public/fonts`
 - **لوگو:** `public/logo.png` (از آیکون خود برنامه گرفته شده است)
 
-## اضافه‌کردن صدای گوینده
+## صدای گوینده (نسخهٔ صدادار)
 
-به‌ازای هر صحنه یک فایل صدا (`scene1.mp3` … `scene7.mp3`) داخل `public/voice/`
-بگذارید و در `src/Promo.tsx` آن‌ها را با شروع همان صحنه پخش کنید:
+نسخهٔ صدادار آماده است: فایل نهایی `A-Cut-2Dpro-promo-voiced.mp4` در همین پوشه و
+زیرنویس هم‌زمانش `subtitles-voiced.fa.srt`. صدای هر صحنه در
+`public/voice/scene1.mp3` تا `scene7.mp3` است و کامپوزیشن جداگانهٔ
+`PromoVoiced` در `src/Promo.tsx` طول هر صحنه را بر اساس مدت واقعی همان فایل
+(آرایهٔ `AUDIO_SECONDS` — بعد از جایگزینی فایل‌ها این عددها را به‌روز کنید)
+تنظیم می‌کند تا جمله‌ها نبرند. برای ضبط/تولید صدای تازه، به‌ازای هر صحنه یک
+فایل جدا بسازید و در `public/voice/` جایگزین کنید؛ نمونهٔ دستی:
 
 ```tsx
 import { Audio, Sequence, staticFile } from 'remotion';
