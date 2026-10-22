@@ -39,7 +39,7 @@ npm run build:app  # بیلد بستهٔ بومی (base نسبی، بدون Serv
 | `npm run android:aab` | بیلد + سینک + `gradlew bundleRelease` → `app-release.aab` |
 | `npm run desktop:install` | نصب وابستگی‌های Electron (یک‌بار) |
 | `npm run desktop:dev` | اجرای نسخهٔ دسکتاپ روی سیستم خودتان |
-| `npm run build:win` | ساخت **EXE پرتابل** ویندوز با electron-builder |
+| `npm run build:win` | ساخت **اینستالر NSIS** ویندوز با electron-builder (همراه `latest.yml` برای بروزرسانی خودکار) |
 
 ## تعاریف تخصصی
 
@@ -308,15 +308,22 @@ interface Project {
 همان اپ React/Vite بدون تغییر منطق، داخل بستهٔ نصب‌شدنی اجرا می‌شود. تنظیمات آماده است:
 
 - `capacitor.config.ts` — `appId: com.acut.cut2dpro`، `appName: A-Cut 2Dpro`، **`webDir: 'dist'`**
-  و `server.androidScheme: 'https'` (تا IndexedDB/Dexie داخل WebView درست کار کند).
+  و بخش `server` در حالت **بارگذاری زنده (Live URL)**: اپ اندروید پوسته‌ای است که همیشه
+  آخرین نسخهٔ وب (`https://gase99.github.io/Webxplusx/`) را بارگذاری می‌کند؛ اگر بارگذاری
+  موفق نباشد (مثلاً بدون اینترنت)، صفحهٔ خطای محلی `public/offline.html` (از طریق
+  `server.errorPath`) نمایش داده می‌شود.
 - `android/` — پروژهٔ کامل اندروید (Capacitor 8، `minSdk 24`، `targetSdk 36`، `applicationId com.acut.cut2dpro`)،
   آیکون لانچر و Splash با رنگ برند `#0284C7`، پشتیبانی RTL.
-- `desktop/` — بستهٔ Electron: `main.cjs` (سرو محتوای `web/` روی پروتکل امن `app://`)،
-  `prepare.mjs` (کپی `dist` → `desktop/web`)، و پیکربندی `electron-builder` برای خروجی
-  **portable EXE** با نام `A-Cut-2Dpro-0.1.0-portable.exe`.
+- `desktop/` — بستهٔ Electron: `main.cjs` (سرو محتوای `web/` روی پروتکل امن `app://` +
+  متد `checkForUpdates` برای بروزرسانی خودکار با `electron-updater`)، `prepare.mjs`
+  (کپی `dist` → `desktop/web`)، و پیکربندی `electron-builder` برای خروجی **اینستالر NSIS**
+  با نام `A-Cut-2Dpro-<نسخه>-Setup.exe` به‌همراه `latest.yml` و `blockmap` برای آپدیت خودکار
+  از GitHub Releases.
 
 > نکته: `base` در `vite.config.ts` برای وب `'/Webxplusx/'` و برای بستهٔ بومی `'./'` است؛
 > بدون این تفاوت، فایل‌های JS/CSS داخل WebView/Electron پیدا نمی‌شدند.
+> در اندروید، به‌دلیل Live URL، نسخهٔ در حال اجرا همان بیلد وب است و نسخهٔ داخل APK فقط
+> برای صفحهٔ خطای آفلاین نگه داشته می‌شود؛ در ویندوز محتوای `dist` واقعاً داخل خود EXE است.
 
 ### ۱) ساخت فایل نصبی اندروید (`.apk`)
 
@@ -350,20 +357,36 @@ npm run android:open
 نصب روی گوشی: فایل `.apk` را منتقل و «نصب از منابع نامشخص» را برای فایل‌منیجر فعال کنید،
 یا با کابل: `adb install -r android/app/build/outputs/apk/debug/app-debug.apk`.
 
-**بعد از هر تغییر کد:** فقط `npm run cap:sync` (یا `npm run android:apk`) کافی است؛
-دوباره `cap add` لازم نیست.
+**بعد از هر تغییر کد:** به‌لطف Live URL، تغییرات رابط و منطق برنامه با همان انتشار نسخهٔ وب
+به کاربران اندروید می‌رسد و به APK جدید نیازی نیست. ساخت APK تازه فقط وقتی لازم است که
+خود پوستهٔ بومی عوض شود (`capacitor.config.ts`، پلاگین‌ها، `public/offline.html` یا
+پروژهٔ `android/`): `npm run android:apk` (+ افزایش `versionCode` در `android/app/build.gradle`).
+دوباره `cap add` هم لازم نیست.
 
-### ۲) ساخت فایل اجرایی ویندوز (`.exe` پرتابل)
+### ۲) ساخت فایل نصبی ویندوز (اینستالر NSIS با بروزرسانی خودکار)
 
 **پیش‌نیازها:** Node.js 20+ و ویندوز ۱۰/۱۱ (پیشنهاد). ساخت EXE روی ویندوز بدون
 هیچ ابزار اضافه‌ای انجام می‌شود؛ روی لینوکس/مک به `wine` نیاز است.
 
+از نسخهٔ ۰٫۲٫۰ خروجی ویندوز دیگر Portable تک‌فایل نیست؛ `electron-updater` از Portable
+پشتیبانی نمی‌کند، پس اینستالر **NSIS** (نصب تک‌کلیکهٔ per-user، بدون نیاز به ادمین)
+جای آن را گرفت تا برنامه بتواند خودش را آپدیت کند.
+
 ```bash
 npm install
-npm run desktop:install     # نصب electron + electron-builder داخل desktop/
-npm run build:win           # بیلد وب + کپی به desktop/web + ساخت EXE پرتابل
+npm run desktop:install     # نصب electron + electron-builder + electron-updater داخل desktop/
+npm run build:win           # بیلد وب + کپی به desktop/web + ساخت اینستالر NSIS
 ```
-خروجی: `desktop/release/A-Cut-2Dpro-0.1.0-portable.exe` (بدون نصب، تک‌فایل، قابل اجرا از فلش).
+خروجی در `desktop/release/`:
+- `A-Cut-2Dpro-<نسخه>-Setup.exe` — فایل نصب (همان که کاربر بار اول دانلود می‌کند)
+- `latest.yml` — متادیتای آخرین نسخه؛ `electron-updater` روی سیستم کاربران همین فایل را
+  از آخرین GitHub Release می‌خواند
+- `A-Cut-2Dpro-<نسخه>-Setup.exe.blockmap` — نقشهٔ بلوک‌ها برای دانلود تفاضلی آپدیت‌ها
+
+**رفتار آپدیت در برنامه:** `checkForUpdates()` در `desktop/main.cjs` پنج ثانیه بعد از اجرا
+(و هر ۴ ساعت) ریلیزهای گیت‌هاب را چک می‌کند؛ نسخهٔ جدید بی‌صدا در پس‌زمینه دانلود می‌شود و
+بعد از اتمام دانلود پیام «نسخهٔ جدید دانلود شد؛ برای نصب ری‌استارت شود؟» می‌آید. انتخاب
+«بعداً» یعنی نصب خودکار هنگام بستن برنامه (`autoInstallOnAppQuit`).
 
 برای تست بدون ساخت EXE:
 ```bash
@@ -381,12 +404,29 @@ npm run desktop:dev         # پنجرهٔ Electron با همان بیلد
   `a-cut-2dpro-debug-apk`؛ با `Actions → Build Android APK → Run workflow` دستی اجرا
   می‌شود و با هر تغییر در `android/**`، `capacitor.config.ts`، `vite.config.ts`،
   `package*.json` یا خودِ فایل ورک‌فلو روی `main` و همچنین پوش تگ `v*` خودکار اجرا می‌شود.
-- **Build Windows Portable EXE** (`.github/workflows/windows-exe.yml`) → artifact با
-  نام `a-cut-2dpro-windows-portable` (دستی یا با تگ `v*`)
+- **Build Windows Installer (NSIS)** (`.github/workflows/windows-exe.yml`) → artifact با
+  نام `a-cut-2dpro-windows-installer` (Setup.exe + ‏`latest.yml` + ‏`blockmap`)؛
+  با پوش تگ `v*` علاوه بر آن، **GitHub Release** منتشر می‌شود تا آپدیت خودکار
+  نسخه‌های نصب‌شده کار کند (اجرای دستی فقط artifact می‌سازد).
 
 > نکته: در مرحلهٔ `Set up Android SDK` باید `packages: 'platform-tools'` تنظیم شود؛
 > مقدار پیش‌فرض این اکشن (`tools platform-tools`) شامل پکیج منسوخ `tools` است که
 > گوگل آن را از مخازن حذف کرده و باعث خطای ورک‌فلو می‌شود.
+
+### ۴) روند انتشار نسخهٔ جدید (چک‌لیست)
+
+1. نسخه را در **هر دو** `package.json` (ریشه) و `desktop/package.json` بالا ببرید
+   (مثلاً `0.2.0` → `0.3.0`) و با `npm install --package-lock-only` لاک‌فایل‌ها را همگام کنید.
+2. تغییرات را به `main` مرج کنید → نسخهٔ وب روی GitHub Pages منتشر می‌شود:
+   - **وب/PWA:** کاربران پیام «نسخهٔ جدید برنامه آماده است» را می‌بینند و با یک کلیک
+     بروز می‌شوند (`src/components/UpdateToast.tsx` + سرویس‌ورکر در حالت `prompt`).
+   - **اندروید:** اپ (Live URL) همان لحظه نسخهٔ جدید وب را نشان می‌دهد؛ هیچ کاری لازم نیست.
+3. برای ویندوز تگ بزنید و پوش کنید: `git tag v0.3.0 && git push origin v0.3.0` → ورک‌فلوی
+   NSIS فایل نصب + `latest.yml` را در GitHub Release منتشر می‌کند:
+   - **ویندوز:** برنامه‌های نصب‌شده در اجرای بعدی، آپدیت را خودکار در پس‌زمینه دانلود و
+     با تأیید کاربر (یا هنگام خروج) نصب می‌کنند.
+4. APK اندروید فقط وقتی دوباره لازم می‌شود که پوستهٔ بومی تغییر کرده باشد؛ در آن صورت
+   `versionCode` را در `android/app/build.gradle` یکی بالا ببرید تا روی نسخهٔ قبلی نصب شود.
 
 ## ساختار فایل‌ها
 
@@ -408,12 +448,14 @@ src/
     PartPreview.tsx           # پیش‌نمایش SVG لبه‌های ردیف فعال
     icons.tsx                 # آیکون‌های فارسی/نوار/شیار و…
   App.tsx                     # چیدمان صفحه، خلاصهٔ محاسبات، راهنمای علائم
-capacitor.config.ts           # پیکربندی Capacitor (appId/appName/webDir=dist)
+  components/UpdateToast.tsx  # اعلان «نسخهٔ جدید برنامه آماده است» (PWA — onNeedRefresh)
+capacitor.config.ts           # پیکربندی Capacitor: Live URL روی GitHub Pages + صفحهٔ خطای آفلاین
+public/offline.html           # صفحهٔ خطای نبود اینترنت در اپ اندروید (server.errorPath)
 android/                      # پروژهٔ بومی اندروید (Capacitor)
 desktop/
-  main.cjs                    # فرایند اصلی Electron + پروتکل app://
+  main.cjs                    # فرایند اصلی Electron + پروتکل app:// + بروزرسانی خودکار
   prepare.mjs                 # کپی dist → desktop/web
-  package.json                # electron-builder: خروجی portable EXE
+  package.json                # electron-builder: اینستالر NSIS + publish روی GitHub Releases
 scripts/android-apk.mjs       # اجرای Gradle Wrapper از ریشهٔ پروژه
 ```
 

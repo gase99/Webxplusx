@@ -4,6 +4,7 @@ import InstallButton from './components/InstallButton';
 import LayoutPanel from './components/LayoutPanel';
 import ProjectManager from './components/ProjectManager';
 import PartPreview from './components/PartPreview';
+import UpdateToast from './components/UpdateToast';
 import {
   BandIcon,
   FarsiIcon,
@@ -506,6 +507,9 @@ export default function App() {
           پروژه‌ها در دیتابیس مرورگر (IndexedDB) ذخیره می‌شوند، فضای کاری فعلی به‌صورت خودکار نگه داشته می‌شود و برنامه آفلاین نیز قابل نصب است.
         </footer>
       </main>
+
+      {/* اعلان «نسخهٔ جدید برنامه آماده است» (PWA — رویداد onNeedRefresh) */}
+      <UpdateToast />
     </div>
   );
 }

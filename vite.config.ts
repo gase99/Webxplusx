@@ -22,7 +22,13 @@ export default defineConfig(({ mode }) => {
     VitePWA({
       // در بستهٔ بومی (اندروید/ویندوز) آفلاین‌بودن ذاتی است و SW لازم نیست
       disable: forNativeApp,
-      registerType: 'autoUpdate',
+      // بروزرسانی با اجازهٔ کاربر (prompt): با آمدن نسخهٔ جدید، رویداد
+      // `onNeedRefresh` فعال می‌شود و کامپوننت UpdateToast پیام
+      // «نسخهٔ جدید برنامه آماده است» را نشان می‌دهد؛ با کلیک کاربر
+      // سرویس‌ورکر تازه فعال و صفحه رفرش می‌شود. در حالت 'autoUpdate'
+      // این رویداد هرگز صدا زده نمی‌شود و مرورگر بی‌خبر از کاربر،
+      // حتی وسط ویرایش پروژه، صفحه را خودش رفرش می‌کرد.
+      registerType: 'prompt',
       includeAssets: ['icons/icon-192.png', 'icons/icon-512.png'],
       manifest: {
         name: 'A-Cut 2Dpro | بهینه‌سازی برش دوبعدی ورق',

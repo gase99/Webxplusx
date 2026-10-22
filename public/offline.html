@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0284c7" />
+    <title>A-Cut 2Dpro — اتصال اینترنت لازم است</title>
+    <!--
+      صفحهٔ خطای محلی نسخهٔ اندروید (Capacitor → server.errorPath)
+      این صفحه داخل APK بسته‌بندی می‌شود و وقتی اپ (پوستهٔ Live URL) نتواند
+      سایت https://gase99.github.io/Webxplusx/ را بارگذاری کند — مثلاً
+      به‌خاطر نبود اینترنت — به کاربر نشان داده می‌شود. به همین دلیل
+      کاملاً مستقل است و هیچ منبع بیرونی (فونت/تصویر/اسکریپت) نمی‌خواند.
+    -->
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        min-height: 100dvh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: linear-gradient(180deg, #f0f9ff 0%, #e2e8f0 100%);
+        font-family: Tahoma, "Segoe UI", Arial, sans-serif;
+        color: #0f172a;
+      }
+      .card {
+        width: 100%;
+        max-width: 420px;
+        background: #ffffff;
+        border: 1px solid #cbd5e1;
+        border-radius: 20px;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+        padding: 32px 24px;
+        text-align: center;
+      }
+      .icon {
+        width: 84px;
+        height: 84px;
+        margin: 0 auto 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: #e0f2fe;
+        color: #0284c7;
+      }
+      h1 { font-size: 20px; font-weight: 800; margin-bottom: 10px; }
+      p { font-size: 14px; line-height: 2; color: #475569; }
+      .retry {
+        margin-top: 22px;
+        width: 100%;
+        padding: 13px 20px;
+        border: none;
+        border-radius: 14px;
+        background: #0284c7;
+        color: #ffffff;
+        font-family: inherit;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 6px 16px rgba(2, 132, 199, 0.35);
+      }
+      .retry:active { transform: scale(0.98); }
+      .hint { margin-top: 14px; font-size: 12px; color: #94a3b8; }
+      .brand { margin-top: 20px; font-size: 12px; font-weight: 700; color: #64748b; }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="icon" aria-hidden="true">
+        <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="2" y1="2" x2="22" y2="22" />
+          <path d="M8.5 16.5a5 5 0 0 1 7 0" />
+          <path d="M2 8.82a15 15 0 0 1 4.17-2.65" />
+          <path d="M10.66 5c4.01-.36 8.14.9 11.34 3.76" />
+          <path d="M16.85 11.25a10 10 0 0 1 2.22 1.68" />
+          <path d="M5 12.86a10 10 0 0 1 3.7-2.34" />
+          <circle cx="12" cy="20" r="0.6" fill="currentColor" />
+        </svg>
+      </div>
+      <h1>اتصال اینترنت برقرار نیست</h1>
+      <p>
+        نسخهٔ اندروید <span dir="ltr">A-Cut 2Dpro</span> همیشه آخرین نسخهٔ برنامه را
+        مستقیم از اینترنت بارگذاری می‌کند تا بدون نیاز به نصب دوباره، به‌روز بمانید.
+        <br />
+        لطفاً اتصال اینترنت (وای‌فای یا اینترنت همراه) را بررسی کنید و دوباره تلاش کنید.
+      </p>
+      <button class="retry" type="button" id="retryBtn">🔄 تلاش مجدد</button>
+      <p class="hint">به‌محض وصل‌شدن اینترنت، برنامه به‌صورت خودکار باز می‌شود.</p>
+      <p class="brand"><span dir="ltr">A-Cut 2Dpro</span> — بهینه‌سازی برش دوبعدی ورق</p>
+    </main>
+
+    <script>
+      var APP_URL = 'https://gase99.github.io/Webxplusx/';
+      function openApp() {
+        window.location.replace(APP_URL);
+      }
+      document.getElementById('retryBtn').addEventListener('click', openApp);
+      // وقتی اینترنت وصل شد، خودکار وارد برنامه شو
+      window.addEventListener('online', openApp);
+    </script>
+  </body>
+</html>

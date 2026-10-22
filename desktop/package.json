@@ -1,19 +1,22 @@
 {
   "name": "a-cut-2dpro-desktop",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "A-Cut 2Dpro — نسخهٔ ویندوز (Electron / Portable EXE)",
+  "description": "A-Cut 2Dpro — نسخهٔ ویندوز (Electron / اینستالر NSIS با بروزرسانی خودکار)",
   "author": "Abbas Koroushad",
   "license": "MIT",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
-    "dist:win": "electron-builder --win portable",
+    "dist:win": "electron-builder --win nsis --publish never",
     "pack:dir": "electron-builder --dir"
   },
   "devDependencies": {
     "electron": "^38.4.0",
     "electron-builder": "^26.0.12"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
   },
   "build": {
     "appId": "com.acut.cut2dpro",
@@ -34,16 +37,29 @@
       "icon": "build/icon.ico",
       "target": [
         {
-          "target": "portable",
+          "target": "nsis",
           "arch": [
             "x64"
           ]
         }
       ]
     },
-    "portable": {
-      "artifactName": "A-Cut-2Dpro-${version}-portable.exe",
-      "requestExecutionLevel": "user"
-    }
+    "nsis": {
+      "artifactName": "A-Cut-2Dpro-${version}-Setup.exe",
+      "oneClick": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "A-Cut 2Dpro",
+      "runAfterFinish": true
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "gase99",
+        "repo": "Webxplusx",
+        "releaseType": "release"
+      }
+    ]
   }
 }
