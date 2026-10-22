@@ -121,6 +121,12 @@ input[type="checkbox"] {
 .print-doc-map .cutting-map h3 span {
   font-size: 7pt !important;
 }
+.print-doc-map .map-legend-box {
+  padding: 1.5mm 2.5mm !important;
+}
+.print-doc-map .map-legend-title {
+  font-size: 8pt !important;
+}
 .print-doc-map .map-legend {
   font-size: 7.5pt !important;
   gap: 0 2mm !important;
