@@ -3,7 +3,7 @@
  * ==================================================
  * `window.print()` در WebView گوشی (نسخهٔ APK) و PWA نصب‌شده کار نمی‌کند؛
  * روی موبایل (تشخیص در `platform.ts`) همان سندِ Print Portal — با همان
- * استایل‌های فشردهٔ چاپ — به فایل PDF ‏(A4) تبدیل می‌شود:
+ * استایل و صفحه‌بندی چاپ (هر ورق یک صفحهٔ A4) — به فایل PDF تبدیل می‌شود:
  *  - وب موبایل: دانلود مستقیم فایل
  *  - اپ اندروید: ذخیره با `@capacitor/filesystem` + منوی اشتراک‌گذاری با
  *    `@capacitor/share` تا کاربر آن را ذخیره یا برای چاپ بفرستد.
@@ -12,7 +12,7 @@
  * html2canvas یک موتور رندر جداگانه است که با رنگ‌های `oklch` در
  * Tailwind v4 خطا می‌دهد و CSS Grid را ناقص پشتیبانی می‌کند؛ در عوض
  * html-to-image سند را با همان موتور خودِ مرورگر به تصویر تبدیل می‌کند،
- * پس متن فارسی (با فونت وزیرمتن)، SVG نقشه، پیکان‌ها و هاشورها دقیقاً
+ * پس متن فارسی (با فونت وزیرمتن)، SVG نقشه، برچسب‌های داخل قطعات و هاشورها دقیقاً
  * همان‌طور که روی صفحه/چاپ دیده می‌شوند، با وضوح ۳ برابر (معادل ~۲۸۸dpi)
  * داخل PDF قرار می‌گیرند و خطوط سیاه‌وسفید نقشه کاملاً شارپ می‌مانند.
  *
@@ -77,8 +77,8 @@ export interface CanvasSlice {
 
 /**
  * برش‌های عمودی یک بوم بلند برای صفحه‌بندی A4: هر صفحه دقیقاً به ارتفاع
- * ناحیهٔ محتوای A4 برش می‌خورد. برای سند نقشه حالت عادی یک صفحه است و
- * فقط اگر سند از ارتفاع A4 بلندتر شد، چند صفحه برمی‌گردد.
+ * ناحیهٔ محتوای A4 برش می‌خورد. کاربرد فعلی: «فهرست قطعات» سند نقشه که
+ * اگر از یک صفحه بلندتر شد، چند صفحهٔ انتهایی برمی‌گردد.
  */
 export function computeSlices(
   canvasWidthPx: number,
@@ -125,29 +125,106 @@ function newA4Pdf(title: string): jsPDF {
 }
 
 /**
- * سند نقشه + فهرست قطعات → یک برگهٔ A4 عمودی با حاشیهٔ ۵mm (عینِ چاپ).
- * عرض ضبط در CSS روی ۲۰۰mm÷۰٫۸۵ تنظیم شده تا همان مقیاس ۰٫۸۵ چاپی
- * (`--print-scale`) اعمال شود؛ پس تصویر با عرض کامل ناحیهٔ محتوا (۲۰۰mm)
- * در PDF می‌نشیند. اگر سند بلندتر از یک صفحه شد، سرریز به صفحات بعدی
- * برش می‌خورد تا چیزی از قلم نیفتد.
+ * سند نقشه با صفحه‌بندی «تفکیک‌شده» (عینِ چاپ دسکتاپ): هر ورق خام یک
+ * صفحهٔ کامل A4 می‌شود تا برچسب‌های داخل قطعات درشت و خوانا بمانند و
+ * «فهرست قطعات + فاکتور متریال» در صفحهٔ(های) جدای انتهایی می‌آید.
+ * سربرگ سند و عنوان/راهنمای نقشه بالای صفحهٔ ورق اول قرار می‌گیرد.
+ * عرض ضبط در CSS برابر ناحیهٔ محتوای A4 با حاشیهٔ ۵mm (۲۰۰mm ‏= ‏756px)
+ * است و مقیاس ۱:۱ چاپی است (بدون فشرده‌سازی).
  */
 async function buildMapPdf(portal: HTMLElement): Promise<Blob> {
   const docEl = portal.querySelector<HTMLElement>('.print-doc-map') ?? portal;
-  const canvas = await captureElement(docEl);
-
   const margin = 5;
   const contentWidth = A4_WIDTH_MM - margin * 2; // 200mm
   const contentHeight = A4_HEIGHT_MM - margin * 2; // 287mm
-  const slices = computeSlices(canvas.width, canvas.height, contentWidth, contentHeight);
-  if (slices.length === 0) throw new Error('سند نقشه خالی است');
+
+  const headerEl = docEl.querySelector<HTMLElement>(':scope > header');
+  const mapSection = docEl.querySelector<HTMLElement>('.print-doc-map-inner') ?? docEl;
+  const mapTitleEl = mapSection.querySelector<HTMLElement>(':scope > .cutting-map > div:first-child');
+  const sheetEls = Array.from(docEl.querySelectorAll<HTMLElement>('.print-sheet'));
+  const partsEl = docEl.querySelector<HTMLElement>('.print-parts-section');
+
+  // سند قدیمی/نامتعارف بدون بلوک‌های ورق: رفتار قبلی (کل سند، برش‌خورده)
+  if (sheetEls.length === 0) {
+    const canvas = await captureElement(docEl);
+    const slices = computeSlices(canvas.width, canvas.height, contentWidth, contentHeight);
+    if (slices.length === 0) throw new Error('سند نقشه خالی است');
+    const pdf = newA4Pdf('نقشهٔ برش و فهرست قطعات — A-Cut 2Dpro');
+    slices.forEach((slice, index) => {
+      if (index > 0) pdf.addPage('a4', 'portrait');
+      const pageCanvas = slice.sh === canvas.height ? canvas : sliceCanvas(canvas, slice.sy, slice.sh);
+      const heightMm = contentWidth * (pageCanvas.height / pageCanvas.width);
+      pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', margin, margin, contentWidth, heightMm);
+    });
+    return pdf.output('blob');
+  }
 
   const pdf = newA4Pdf('نقشهٔ برش و فهرست قطعات — A-Cut 2Dpro');
-  slices.forEach((slice, index) => {
-    if (index > 0) pdf.addPage('a4', 'portrait');
-    const pageCanvas = slice.sh === canvas.height ? canvas : sliceCanvas(canvas, slice.sy, slice.sh);
-    const heightMm = contentWidth * (pageCanvas.height / pageCanvas.width);
-    pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', margin, margin, contentWidth, heightMm);
-  });
+  let pageStarted = false;
+
+  /** چیدن چند بوم روی هم و نشستن آن‌ها در یک صفحهٔ A4 (بالا، تمام‌عرض) */
+  const putStack = (blocks: HTMLCanvasElement[], gapMm: number): void => {
+    if (blocks.length === 0) return;
+    const width = Math.max(...blocks.map((b) => b.width));
+    const gapPx = Math.round(gapMm * PX_PER_MM * PIXEL_RATIO);
+    const totalHeight =
+      blocks.reduce((sum, b) => sum + b.height, 0) + gapPx * Math.max(0, blocks.length - 1);
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = totalHeight;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, totalHeight);
+      let y = 0;
+      for (const block of blocks) {
+        ctx.drawImage(block, Math.round((width - block.width) / 2), y);
+        y += block.height + gapPx;
+      }
+    }
+    const naturalWidthMm = width / PIXEL_RATIO / PX_PER_MM;
+    const naturalHeightMm = totalHeight / PIXEL_RATIO / PX_PER_MM;
+    const fit = fitWithinBox(naturalWidthMm, naturalHeightMm, contentWidth, contentHeight);
+    if (pageStarted) pdf.addPage('a4', 'portrait');
+    pageStarted = true;
+    pdf.addImage(
+      canvas.toDataURL('image/png'),
+      'PNG',
+      (A4_WIDTH_MM - fit.widthMm) / 2,
+      margin,
+      fit.widthMm,
+      fit.heightMm,
+    );
+  };
+
+  // صفحه‌های ورق: ورق اول همراه سربرگ و راهنما، بقیه فقط خودِ ورق
+  const headerCanvas = headerEl ? await captureElement(headerEl) : null;
+  const mapTitleCanvas = mapTitleEl ? await captureElement(mapTitleEl) : null;
+  for (let index = 0; index < sheetEls.length; index += 1) {
+    const sheetCanvas = await captureElement(sheetEls[index]);
+    const blocks =
+      index === 0
+        ? [headerCanvas, mapTitleCanvas, sheetCanvas].filter(
+            (b): b is HTMLCanvasElement => b !== null,
+          )
+        : [sheetCanvas];
+    putStack(blocks, 2);
+  }
+
+  // فهرست قطعات + فاکتور متریال: صفحهٔ(های) جدای انتهایی، اگر بلند شد برش می‌خورد
+  if (partsEl) {
+    const canvas = await captureElement(partsEl);
+    const slices = computeSlices(canvas.width, canvas.height, contentWidth, contentHeight);
+    slices.forEach((slice) => {
+      if (pageStarted) pdf.addPage('a4', 'portrait');
+      pageStarted = true;
+      const pageCanvas = slice.sh === canvas.height ? canvas : sliceCanvas(canvas, slice.sy, slice.sh);
+      const heightMm = contentWidth * (pageCanvas.height / pageCanvas.width);
+      pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', margin, margin, contentWidth, heightMm);
+    });
+  }
+
+  if (!pageStarted) throw new Error('سند نقشه خالی است');
   return pdf.output('blob');
 }
 

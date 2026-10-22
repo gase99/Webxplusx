@@ -444,8 +444,8 @@ export default function LayoutPanel({
                   isStale
                     ? 'ابتدا دوباره محاسبه کنید'
                     : prefersPdf
-                      ? 'ساخت فایل PDF (یک برگهٔ A4 عمودی) از نقشهٔ سیاه‌وسفید + فهرست گروه‌بندی‌شدهٔ قطعات و فاکتور متریال — برای ذخیره، اشتراک‌گذاری و چاپ'
-                      : 'چاپ نقشهٔ سیاه‌وسفید + فهرست گروه‌بندی‌شدهٔ قطعات و فاکتور متریال، همه در یک برگهٔ A4 عمودی (قابل ذخیره به‌صورت PDF)'
+                      ? 'ساخت فایل PDF از نقشهٔ سیاه‌وسفید + فهرست گروه‌بندی‌شدهٔ قطعات و فاکتور متریال (هر ورق در یک صفحهٔ A4 جدا و فهرست قطعات در انتها) — برای ذخیره، اشتراک‌گذاری و چاپ'
+                      : 'چاپ نقشهٔ سیاه‌وسفید (هر ورق بزرگ روی یک برگهٔ A4 جدا) و فهرست گروه‌بندی‌شدهٔ قطعات + فاکتور متریال در برگهٔ آخر (قابل ذخیره به‌صورت PDF)'
                 }
                 className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-slate-800 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -610,7 +610,8 @@ export default function LayoutPanel({
 /**
  * سند چاپی نقشهٔ برش: سربرگ خلاصه + نقشه‌ها + فهرست گروه‌بندی‌شدهٔ قطعات
  * و فاکتور متریال (بدون کنترل‌های تعاملی).
- * در CSS چاپ، این سند روی یک برگهٔ A4 عمودی و فشرده تنظیم شده است.
+ * صفحه‌بندی تفکیک‌شده: هر ورق خام یک صفحهٔ کامل A4 و فهرست قطعات در
+ * صفحهٔ(های) جدای انتهایی (در CSS چاپ و exportPdf.ts موبایل یکسان است).
  */
 function PrintMapDocument({ result, parts }: { result: LayoutResult; parts: CutPart[] }) {
   const today = new Date().toLocaleDateString('fa-IR');
@@ -643,7 +644,7 @@ function PrintMapDocument({ result, parts }: { result: LayoutResult; parts: CutP
         </ul>
       </header>
       <CuttingMap sheets={result.sheets} stock={result.stock} parts={parts} forPrint />
-      {/* همان برگه چاپی: زیر همهٔ SVGهای نقشه، فهرست گروه‌بندی‌شده + فاکتور متریال */}
+      {/* صفحهٔ جدا در انتها: فهرست گروه‌بندی‌شدهٔ قطعات + فاکتور متریال */}
       <PrintPartsList result={result} parts={parts} />
     </div>
   );

@@ -79,31 +79,32 @@ input[type="checkbox"] {
 /* ------------------------------------------------------------------ */
 
 /*
- * سند نقشه (سربرگ + نقشه‌ها + جدول قطعات + فاکتور متریال) باید یک‌جا و در
- * یک برگهٔ A4 بماند. مقیاس ۰٫۸۵ چاپی با zoom در @media print اعمال می‌شود؛
- * در ضبط PDF به‌جای آن عرض سند ۲۰۰mm÷۰٫۸۵ گرفته می‌شود (پایین‌تر).
+ * سند نقشه (سربرگ + نقشه‌ها + جدول قطعات + فاکتور متریال) صفحه‌بندی
+ * «تفکیک‌شده» دارد: هر ورق خام یک صفحهٔ کامل A4 را می‌گیرد تا نقشه در
+ * بزرگ‌ترین اندازه و خوانا چاپ شود و فهرست قطعات + فاکتور در صفحهٔ(های)
+ * جدا در انتها می‌آیند. شکست صفحه‌ها در @media print تعریف شده و خروجی
+ * PDF موبایل (exportPdf.ts) هم دقیقاً با همین تفکیک، صفحه‌به‌صفحه می‌سازد.
  */
 .print-doc-map {
-  --print-scale: 0.85;
   width: 100%;
 }
 
-/* سربرگ سند: فشرده تا جای نقشه و جدول بیشتر شود */
+/* سربرگ سند (فقط صفحهٔ اول، بالای ورق اول) */
 .print-doc-map > header {
-  margin-bottom: 1.5mm !important;
-  padding-bottom: 1mm !important;
+  margin-bottom: 2mm !important;
+  padding-bottom: 1.5mm !important;
   border-bottom-width: 1.4pt !important;
   gap: 0 3mm !important;
 }
 .print-doc-map > header h1 {
-  font-size: 11pt !important;
+  font-size: 14pt !important;
   line-height: 1.15;
 }
 .print-doc-map > header p {
-  font-size: 6pt !important;
+  font-size: 7.5pt !important;
 }
 .print-doc-map > header ul {
-  font-size: 6pt !important;
+  font-size: 8pt !important;
   gap: 0 3mm !important;
 }
 
@@ -115,32 +116,27 @@ input[type="checkbox"] {
   gap: 0 3mm !important;
 }
 .print-doc-map .cutting-map h3 {
-  font-size: 8pt !important;
+  font-size: 11pt !important;
 }
 .print-doc-map .cutting-map h3 span {
-  font-size: 5.5pt !important;
+  font-size: 7pt !important;
 }
 .print-doc-map .map-legend {
-  font-size: 5.5pt !important;
+  font-size: 7.5pt !important;
   gap: 0 2mm !important;
 }
 .print-doc-map .map-legend svg {
-  width: 5mm !important;
-  height: 3.4mm !important;
+  width: 7mm !important;
+  height: 4.6mm !important;
 }
 
-/* نقشه‌ها: چند ورق کنار هم و ارتفاع محدود تا کل سند در یک صفحه بماند */
+/* نقشه‌ها: هر ورق تمام‌عرض و زیر هم (در چاپ هرکدام در صفحهٔ خودش) */
 .print-portal .print-sheets {
-  display: grid !important;
-  grid-template-columns: repeat(auto-fit, minmax(86mm, 1fr));
-  gap: 2mm !important;
-  margin-top: 1mm !important;
+  display: block !important;
+  margin-top: 2mm !important;
 }
 .print-portal .print-sheets > * {
   margin: 0 !important;
-}
-.print-portal .print-sheets > .print-sheet:only-child {
-  grid-column: 1 / -1;
 }
 .print-portal .print-sheet {
   border-radius: 0 !important;
@@ -151,12 +147,12 @@ input[type="checkbox"] {
   page-break-inside: avoid;
 }
 .print-portal .print-sheet figcaption {
-  padding: 0.8mm 1.5mm !important;
-  font-size: 5.5pt !important;
+  padding: 1.6mm 2mm !important;
+  font-size: 8.5pt !important;
   gap: 0 2mm !important;
 }
 .print-portal .print-sheet figcaption span {
-  font-size: 5pt !important;
+  font-size: 7.5pt !important;
 }
 .print-portal .print-sheet > div {
   padding: 1mm !important;
@@ -164,11 +160,8 @@ input[type="checkbox"] {
 .print-portal .print-sheet svg {
   width: 100% !important;
   height: auto !important;
-  max-height: 82mm;
-}
-/* تنها ورق سند می‌تواند ارتفاع بیشتری بگیرد (بقیهٔ فضا برای جدول است) */
-.print-portal .print-sheets > .print-sheet:only-child svg {
-  max-height: 92mm;
+  /* سقف ارتفاع فقط برای ورق‌های خیلی کشیده تا از صفحهٔ خودش بیرون نزند */
+  max-height: 240mm;
 }
 
 /* در سند خروجی نیازی به اسکرول افقی نقشه یا برگهٔ کنترل نیست */
@@ -206,9 +199,9 @@ input[type="checkbox"] {
 .print-portal .control-sheet-table--grouped th:nth-child(8),
 .print-portal .control-sheet-table--grouped td:nth-child(8) { width: 7%; }
 
-/* فهرست قطعات زیر نقشه: فشرده تا همراه نقشه و فاکتور در یک برگه بماند */
+/* فهرست قطعات: صفحهٔ(های) جدا در انتهای سند (شکست صفحه در @media print) */
 .print-parts-section {
-  margin-top: 1.5mm !important;
+  margin-top: 0 !important;
   break-inside: auto;
   page-break-inside: auto;
 }
@@ -222,40 +215,40 @@ input[type="checkbox"] {
   page-break-inside: avoid;
 }
 
-/* سند نقشه: جدول ۸ ستونی فشرده و خوانا */
+/* سند نقشه: جدول ۸ ستونی خوانا در صفحهٔ مستقل خودش */
 .print-portal .print-parts-section > div:first-child {
-  margin-bottom: 1mm !important;
-  padding-bottom: 1mm !important;
+  margin-bottom: 2mm !important;
+  padding-bottom: 1.5mm !important;
   border-bottom-width: 1.4pt !important;
   gap: 0 2mm !important;
 }
 .print-portal .print-parts-section h2 {
-  font-size: 8pt !important;
+  font-size: 12pt !important;
 }
 .print-portal .print-parts-section > div:first-child span {
-  font-size: 5.5pt !important;
+  font-size: 8pt !important;
   padding: 0.4mm 1mm !important;
 }
 .print-portal .print-parts-section > p {
-  margin: 0 0 0.5mm !important;
-  font-size: 5pt !important;
-  line-height: 1.35 !important;
+  margin: 0 0 1mm !important;
+  font-size: 7.5pt !important;
+  line-height: 1.5 !important;
 }
 .print-portal .print-parts-section .control-sheet-scroll {
-  margin-top: 0.5mm !important;
+  margin-top: 1mm !important;
   border-radius: 0 !important;
 }
 .print-portal .print-parts-section .control-sheet-table {
   width: 100% !important;
   min-width: 0 !important;
   table-layout: fixed;
-  font-size: 6pt;
+  font-size: 7.5pt;
 }
 .print-portal .print-parts-section .control-sheet-table th,
 .print-portal .print-parts-section .control-sheet-table td {
   min-width: 0 !important;
-  padding: 0.5mm 0.7mm !important;
-  line-height: 1.2 !important;
+  padding: 1mm 1mm !important;
+  line-height: 1.3 !important;
 }
 
 /* مربع کنترل کارگاهی در سند */
@@ -274,13 +267,13 @@ input[type="checkbox"] {
   border-width: 1.2pt !important;
 }
 .print-portal .control-sheet-materials h4 {
-  font-size: 8pt !important;
+  font-size: 11pt !important;
 }
 .print-portal .control-sheet-materials > div:first-child {
   padding-bottom: 1mm !important;
 }
 .print-portal .control-sheet-materials > div:first-child span {
-  font-size: 5.5pt !important;
+  font-size: 7.5pt !important;
 }
 .print-portal .control-sheet-materials .mt-3 {
   margin-top: 1mm !important;
@@ -291,13 +284,13 @@ input[type="checkbox"] {
   border-radius: 0 !important;
 }
 .print-portal .control-sheet-materials .grid > div > div:first-child {
-  font-size: 5.5pt !important;
+  font-size: 7.5pt !important;
 }
 .print-portal .control-sheet-material-value {
-  font-size: 11pt !important;
+  font-size: 13pt !important;
 }
 .print-portal .control-sheet-material-value span {
-  font-size: 7pt !important;
+  font-size: 9pt !important;
 }
 
 /* صفحات لیبل دقیقاً روی مرز صفحهٔ A4 تمام شوند */
@@ -318,8 +311,10 @@ input[type="checkbox"] {
 /*  حالت ضبط PDF (موبایل): سند بیرون از دید کاربر با عرض واقعی A4      */
 /*  چیده می‌شود تا exportPdf.ts از آن عکس با وضوح بالا بگیرد.          */
 /*  عرض‌ها بر مبنای 96dpi ‏(۱mm ≈ ۳٫۷۸px) و حاشیهٔ هر سند است:        */
-/*   نقشه: ناحیهٔ محتوا ۲۰۰mm و تقسیم بر مقیاس چاپی ۰٫۸۵ ← 889px      */
+/*   نقشه: ناحیهٔ محتوای A4 با حاشیهٔ ۵mm ‏= ۲۰۰mm ← 756px             */
 /*   لیبل: ناحیهٔ محتوا ۱۹۴mm (حاشیهٔ ۸mm) ← 733px                     */
+/*  سند نقشه بلوک‌به‌بلوک ضبط می‌شود: سربرگ و هر ورق جدا و فهرست       */
+/*  قطعات جدا، تا هر ورق دقیقاً یک صفحهٔ PDF شود (مثل چاپ).            */
 /* ------------------------------------------------------------------ */
 html[data-pdf-capture] .print-portal {
   display: block;
@@ -330,15 +325,10 @@ html[data-pdf-capture] .print-portal {
   background: #fff;
 }
 html[data-pdf-capture="map"] .print-portal {
-  width: 889px;
+  width: 756px;
 }
 html[data-pdf-capture="labels"] .print-portal {
   width: 733px;
-}
-html[data-pdf-capture] .print-doc-map {
-  /* مقیاس ۰٫۸۵ با عرض ضبط (889px) تأمین شده؛ zoom/transform لازم نیست */
-  zoom: 1;
-  transform: none;
 }
 /*
  * کلاس‌های واکنش‌گرای Tailwind به عرض «پنجره» نگاه می‌کنند نه سند؛ روی گوشی
@@ -392,33 +382,23 @@ html[data-pdf-capture] .print-portal .control-sheet-materials .grid {
   }
 
   /*
-   * فشرده‌سازی سند نقشه در چاپ: zoom اندازهٔ چیدمان را هم کوچک می‌کند،
-   * پس صفحه‌بندی درست می‌ماند. (در ضبط PDF معادل این مقیاس با عرض 889px
-   * تأمین می‌شود؛ به بخش data-pdf-capture در بالا نگاه کنید.)
+   * صفحه‌بندی تفکیک‌شدهٔ سند نقشه (بدون هیچ فشرده‌سازی/zoom):
+   * هر ورق خام در صفحهٔ A4 خودش به‌صورت بزرگ و تمام‌عرض چاپ می‌شود و
+   * «فهرست قطعات + فاکتور متریال» در صفحهٔ(های) جدای انتهایی می‌آید.
+   * (خروجی PDF موبایل در exportPdf.ts هم همین صفحه‌بندی را می‌سازد.)
    */
   .print-doc-map {
     page: a4;
-    zoom: var(--print-scale);
-    transform-origin: top right;
+  }
+  .print-portal .print-sheet {
+    page-break-after: always;
+    break-after: page;
     page-break-inside: avoid;
     break-inside: avoid;
-    page-break-after: avoid;
-    break-after: avoid;
   }
-  /*
-   * مرورگرهایی که zoom را پشتیبانی نمی‌کنند: همان فشرده‌سازی با
-   * transform: scale() و عرض جبران‌شده تا محتوا از برگهٔ A4 بیرون نزند.
-   */
-  @supports not (zoom: 1) {
-    .print-doc-map {
-      transform: scale(var(--print-scale));
-      width: calc(100% / var(--print-scale));
-      max-width: none;
-    }
-  }
-  .print-portal {
-    page-break-inside: avoid;
-    break-inside: avoid;
+  .print-portal .print-parts-section {
+    page-break-before: always;
+    break-before: page;
   }
   .print-doc-labels {
     page: a4-portrait;

@@ -5,7 +5,7 @@ import { SheetMap } from '../components/SheetMap';
 import { FONT_FAMILY } from '../lib/font';
 import { COLORS } from '../lib/theme';
 
-/** صحنهٔ ۴ — نقشهٔ برش سیاه‌وسفید: پیکان‌های عملیات + هاشور پرت + زوم روی یک قطعه */
+/** صحنهٔ ۴ — نقشهٔ برش سیاه‌وسفید: برچسب‌های درشت داخل قطعه + هاشور پرت + زوم روی یک قطعه */
 export const Scene4CuttingMap: React.FC = () => {
   const frame = useCurrentFrame();
 
@@ -75,8 +75,8 @@ export const Scene4CuttingMap: React.FC = () => {
             mode="bw"
             startFrame={-200}
             stagger={0}
-            showArrows
-            arrowStartFrame={34}
+            showOps
+            opsStartFrame={34}
             highlightIndex={8}
             highlightFromFrame={146}
           />
@@ -99,7 +99,7 @@ export const Scene4CuttingMap: React.FC = () => {
             boxShadow: '0 16px 44px rgba(0,0,0,0.35)',
           }}
         >
-          پیکانِ بیرون هر لبه = عملیات همان لبه
+          نام عملیات، درشت داخل قطعه و کنار همان لبه
         </div>
       </div>
 
@@ -138,7 +138,7 @@ export const Scene4CuttingMap: React.FC = () => {
         ))}
       </div>
 
-      <Caption text="نقشهٔ سیاه‌وسفید با پیکان عملیات هر لبه و هاشور پرت" delay={12} />
+      <Caption text="نقشهٔ سیاه‌وسفید؛ ابعاد و عملیات هر لبه درشت داخل قطعه، پرت با هاشور" delay={12} />
     </AbsoluteFill>
   );
 };
