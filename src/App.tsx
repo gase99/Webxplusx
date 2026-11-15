@@ -442,8 +442,8 @@ export default function App() {
             </h2>
             <PartPreview part={activePart} />
             <p className="mt-1 text-center text-xs leading-6 text-slate-500">
-              در <strong className="text-slate-700">نقشهٔ برش (فاز ۳)</strong> همین عملیات با علائم
-              استاندارد دقیقاً زیر عدد هر جهت می‌آید: <span className="font-bold text-slate-900">خط ممتد = نوار، خط‌چین = شیار، «ف» = فارسی ۴۵°</span>
+              در <strong className="text-slate-700">نقشهٔ برش (فاز ۳)</strong> همین عملیات سیاه‌وسفید روی خودِ
+              همان لبه علامت می‌خورد: <span className="font-bold text-slate-900">نوار مشکی توپر = نوار، کانال دو خطی = شیار، خط دندانه‌ای = فارسی ۴۵°</span> (با حرف «ن / ش / ف» کنار لبه)
             </p>
           </div>
 
@@ -459,7 +459,7 @@ export default function App() {
                   <span className="text-slate-500"> — </span>
                   <span dir="ltr" className="text-slate-500">Edge Banding</span>
                   <br />
-                  <span className="text-slate-600">در پیش‌نمایش ردیف خط سبزآبی دارد؛ در نقشهٔ برش با یک خط ممتد ضخیم دقیقاً زیر عدد همان جهت نشان داده می‌شود (دو خط ممتد یعنی هر دو لبه).</span>
+                  <span className="text-slate-600">در پیش‌نمایش ردیف خط سبزآبی دارد؛ در نقشهٔ برش با نوار مشکی توپر روی خودِ همان لبه و حرف «ن» کنارش نشان داده می‌شود.</span>
                 </p>
               </li>
               <li className="flex gap-3">
@@ -472,7 +472,7 @@ export default function App() {
                   <span dir="ltr" className="text-slate-500">Miter Cut</span>
                   <br />
                   <span className="text-slate-600">
-                    کنار ورودی آن آیکون مثلث/خط مورب هست؛ روی نقشهٔ برش با حرف «ف» کنار عدد همان جهت نشان داده می‌شود تا اپراتور متوجه شود («ف ف» یعنی هر دو لبه).
+                    کنار ورودی آن آیکون مثلث/خط مورب هست؛ روی نقشهٔ برش با خط دندانه‌ای (زیگزاگ ۴۵°) روی همان لبه و حرف «ف» کنارش نشان داده می‌شود.
                   </span>
                 </p>
               </li>
@@ -484,7 +484,7 @@ export default function App() {
                   <strong className="text-amber-800">شیار</strong>
                   <span className="text-slate-500"> — برای جاگذاری ورق ۳ میلی‌متری (پشت‌بند)</span>
                   <br />
-                  <span className="text-slate-600">در پیش‌نمایش خط‌چین کهربایی است؛ در نقشهٔ برش با خط‌چین مشکی دقیقاً زیر عدد همان جهت نشان داده می‌شود (دو خط‌چین یعنی هر دو لبه).</span>
+                  <span className="text-slate-600">در پیش‌نمایش خط‌چین کهربایی است؛ در نقشهٔ برش با کانال دو خطی (خط‌چین وسط) کمی داخل‌تر از همان لبه و حرف «ش» کنارش نشان داده می‌شود.</span>
                 </p>
               </li>
             </ul>
