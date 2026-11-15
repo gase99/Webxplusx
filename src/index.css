@@ -5,8 +5,24 @@
 }
 
 body {
-  @apply bg-slate-200 text-slate-800 antialiased;
+  @apply text-slate-800 antialiased;
+  min-height: 100vh;
+  background: #f6f8fc;
   font-family: var(--font-sans);
+}
+
+button, input, select, textarea {
+  font: inherit;
+}
+
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 3px solid rgb(56 189 248 / 0.55);
+  outline-offset: 2px;
+}
+
+::selection {
+  color: #0f172a;
+  background: #bae6fd;
 }
 
 /* حذف اسپینر ورودی‌های عددی (در صورت استفاده از type=number) */
