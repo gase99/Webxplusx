@@ -16,13 +16,14 @@ import type { CutPart } from '../types/part';
  *
  * قرارداد خواندن نقشه (سیاه‌وسفید — علامت روی «خودِ لبه»):
  *  - بدنهٔ قطعه سفید با حاشیهٔ مشکی؛ پرت/باقی‌ماندهٔ ورق: هاشور مورب نازک.
- *  - مرکز قطعه: نام و ابعاد («طول: …» و «عرض: …»)؛ در قطعهٔ چرخیده متن ۹۰° می‌چرخد.
+ *  - مرکز قطعه: فقط نام قطعه. اندازه‌ها کنار ضلع مربوطه نوشته می‌شوند: عدد بالای
+ *    قطعه = اندازهٔ ضلع افقی و عدد سمت راست (عمودی) = اندازهٔ ضلع عمودی روی نقشه.
  *  - عملیات هر لبه دقیقاً روی همان لبه (نگاشت مشترک `partEdges.ts`، هم‌سو با
  *    لیبل و DXF) رسم می‌شود:
  *      نوار  ← نوار مشکی توپر چسبیده به لبه
  *      شیار  ← کانال دو خطی (با خط‌چین وسط) موازی لبه، کمی داخل‌تر از آن
  *      فارسی ← خط دندانه‌ای (زیگزاگ ۴۵°) موازی لبه
- *    کنار وسط هر لبهٔ علامت‌دار یک برچسب گرد با حرف اختصاری عملیات
+ *    نزدیک ابتدای هر لبهٔ علامت‌دار یک برچسب گرد با حرف اختصاری عملیات
  *    (ن / ش / ف) هم می‌آید تا بدون راهنما هم خوانا باشد.
  *  - در قطعات خیلی کوچک برچسب‌های حرفی حذف می‌شوند ولی خود علائم لبه می‌مانند.
  */
@@ -217,13 +218,12 @@ interface TagLayout {
   cx: number;
   cy: number;
   halfW: number;
-  /** فاصلهٔ دورترین نقطهٔ برچسب از لبه */
-  reach: number;
 }
 
 /**
- * جای برچسب حرفی یک لبه؛ برچسب کپسولی همیشه افقی است، پس روی لبه‌های چپ/راست
- * پهنای آن در راستای عمق قرار می‌گیرد. اگر کامل داخل قطعه جا نشود null برمی‌گردد.
+ * جای برچسب حرفی یک لبه: نزدیک ابتدای لبه (نه وسط، چون وسط لبه جای عدد اندازه است).
+ * برچسب کپسولی همیشه افقی است، پس روی لبه‌های چپ/راست پهنای آن در راستای عمق قرار
+ * می‌گیرد. اگر کامل داخل قطعه و بیرون از محدودهٔ عدد اندازه جا نشود null برمی‌گردد.
  */
 function tagLayout(
   edge: EdgeLayout,
@@ -231,6 +231,10 @@ function tagLayout(
   m: MarkMetrics,
   w: number,
   h: number,
+  /** فاصلهٔ لازم از گوشه (عمق علائم لبه‌های عمود) */
+  cornerClear: number,
+  /** بیشینهٔ فاصلهٔ مجاز انتهای برچسب از ابتدای لبه */
+  alongLimit: number,
 ): TagLayout | null {
   const r = m.tagR;
   if (r <= 0) return null;
@@ -240,11 +244,12 @@ function tagLayout(
   const halfAcross = vertical ? halfW : r;
   const halfAlong = vertical ? r : halfW;
   const depth = Math.max(halfAcross * 1.1, m.depth(edge.ops) / 2);
-  const reach = depth + halfAcross;
   const across = vertical ? w : h;
-  if (reach > across / 2 || halfAlong > (frame.len / 2) * 0.9) return null;
-  const [cx, cy] = at(frame, frame.len / 2, depth);
-  return { cx, cy, halfW, reach };
+  if (depth + halfAcross > across / 2) return null;
+  const t = Math.max(frame.len * 0.18, cornerClear + halfAlong + m.u * 0.5);
+  if (t + halfAlong > alongLimit) return null;
+  const [cx, cy] = at(frame, t, depth);
+  return { cx, cy, halfW };
 }
 
 function EdgeTag({ edge, tag, m }: { edge: EdgeLayout; tag: TagLayout; m: MarkMetrics }) {
@@ -284,60 +289,32 @@ function EdgeTag({ edge, tag, m }: { edge: EdgeLayout; tag: TagLayout; m: MarkMe
 /*  متن مرکز قطعه                                                       */
 /* ------------------------------------------------------------------ */
 
-const CENTER_FONT_MAX_MM = 46;
-const CENTER_FONT_MIN_MM = 12;
-const COMPACT_FONT_MIN_MM = 7;
+const NAME_FONT_MAX_MM = 50;
+const NAME_FONT_MIN_MM = 7;
+const DIM_FONT_MAX_MM = 42;
+const DIM_FONT_MIN_MM = 6;
 
-interface CenterSpec {
-  lines: string[];
-  fontSize: number;
+/** اندازهٔ فونت نام وسط قطعه؛ جهت متن (افقی/عمودی) هر کدام جای بیشتری بدهد */
+function fitName(name: string, availW: number, availH: number): { size: number; vertical: boolean } {
+  const n = Math.max(charCount(name), 1);
+  const fit = (along: number, across: number) =>
+    along <= 0 || across <= 0 ? 0 : Math.min(NAME_FONT_MAX_MM, (along * 0.9) / (n * 0.6), across * 0.8);
+  const horizontal = fit(availW, availH);
+  const vertical = fit(availH, availW);
+  return vertical > horizontal * 1.15 ? { size: vertical, vertical: true } : { size: horizontal, vertical: false };
 }
 
-/**
- * انتخاب بلوک مرکزی بر اساس فضای قطعه (منهای حاشیهٔ علائم لبه):
- *  - جادار: نام + «طول: …» + «عرض: …»
- *  - متوسط: «طول: …» و «عرض: …»
- *  - کوچک: «طول×عرض» فشرده
- *  - خیلی ریز: هیچ (شمارهٔ نمونه رسم می‌شود)
- */
-function buildCenterLines(
-  placement: PlacedPartData,
-  source: CutPart | undefined,
-  name: string,
-  /** فضای اشغال‌شده با علائم لبه در جهت افقی/عمودی نقشه (هر طرف) */
-  reserveX: number,
-  reserveY: number,
-): CenterSpec | null {
-  const { width: w, height: h, isRotated } = placement;
-  const partLength = source?.length ?? (isRotated ? h : w);
-  const partWidth = source?.width ?? (isRotated ? w : h);
-
-  const along = isRotated ? h - 2 * reserveY : w - 2 * reserveX;
-  const across = isRotated ? w - 2 * reserveX : h - 2 * reserveY;
-  if (along <= 0 || across <= 0) return null;
-  const availAlong = along * 0.92;
-  const availAcross = across * 0.92;
-
-  const fit = (lines: string[], cap: number): number =>
-    Math.min(
-      cap,
-      availAlong / (Math.max(...lines.map(charCount)) * 0.6),
-      availAcross / (lines.length * 1.3),
-    );
-
-  const lengthLine = `طول: ${partLength}`;
-  const widthLine = `عرض: ${partWidth}`;
-  for (const lines of [
-    [name, lengthLine, widthLine],
-    [lengthLine, widthLine],
-  ]) {
-    const size = fit(lines, CENTER_FONT_MAX_MM);
-    if (size >= CENTER_FONT_MIN_MM) return { lines, fontSize: size };
-  }
-  const compact = [`${partLength}×${partWidth}`];
-  const size = fit(compact, 40);
-  if (size >= COMPACT_FONT_MIN_MM) return { lines: compact, fontSize: size };
-  return null;
+interface DimLabel {
+  side: PartSide;
+  text: string;
+  x: number;
+  y: number;
+  fontSize: number;
+  rotate: boolean;
+  /** نیم‌طول متن در امتداد لبه */
+  half: number;
+  /** فاصلهٔ لبهٔ داخلی متن از لبهٔ قطعه */
+  reach: number;
 }
 
 /* ------------------------------------------------------------------ */
@@ -359,70 +336,133 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
 
   const name = (placement.name ?? source?.name ?? '').trim() || 'بدون نام';
   const mapDims = `${placement.width}×${placement.height}`;
+  const partLength = source?.length ?? (isRotated ? h : w);
+  const partWidth = source?.width ?? (isRotated ? w : h);
 
   const edges = edgeLayouts(source, isRotated);
   const m = markMetrics(w, h, s);
+  const markDepth = (side: PartSide): number => {
+    const e = edges.find((edge) => edge.side === side);
+    return e ? m.depth(e.ops) : 0;
+  };
+
+  // عدد اندازه کنار ضلع مربوطه: بالا = بُعد افقی روی نقشه، راست = بُعد عمودی
+  const dimFont = Math.min(DIM_FONT_MAX_MM, Math.max(Math.min(w, h) * 0.16, 2.5 * s));
+  const dimLabel = (side: 'top' | 'right', value: number): DimLabel | null => {
+    const text = String(value);
+    const frame = edgeFrame(side, x, y, w, h);
+    const across = side === 'top' ? h : w;
+    const clear = Math.max(markDepth(side === 'top' ? 'left' : 'top'), markDepth(side === 'top' ? 'right' : 'bottom'));
+    const room = frame.len - 2 * clear;
+    const font = Math.min(dimFont, (room * 0.8) / (charCount(text) * 0.6));
+    if (font < DIM_FONT_MIN_MM) return null;
+    const depth = markDepth(side) + m.u * 0.6 + font * 0.55;
+    if (depth + font * 0.55 > across / 2) return null;
+    const [lx, ly] = at(frame, frame.len / 2, depth);
+    return {
+      side,
+      text,
+      x: lx,
+      y: ly,
+      fontSize: font,
+      rotate: side === 'right',
+      half: (charCount(text) * 0.6 * font) / 2,
+      reach: depth + font * 0.55,
+    };
+  };
+  const dims = [
+    dimLabel('top', isRotated ? partWidth : partLength),
+    dimLabel('right', isRotated ? partLength : partWidth),
+  ].filter((d): d is DimLabel => d !== null);
+
   const marked = edges.map((edge) => {
     const frame = edgeFrame(edge.side, x, y, w, h);
-    return { edge, frame, tag: tagLayout(edge, frame, m, w, h) };
+    const vertical = edge.side === 'left' || edge.side === 'right';
+    const cornerClear = vertical
+      ? Math.max(markDepth('top'), markDepth('bottom'))
+      : Math.max(markDepth('left'), markDepth('right'));
+    const dim = dims.find((d) => d.side === edge.side);
+    const alongLimit = dim ? frame.len / 2 - dim.half - m.u : frame.len - cornerClear - m.u * 0.5;
+    return { edge, frame, tag: tagLayout(edge, frame, m, w, h, cornerClear, alongLimit) };
   });
-  const reserveOf = (sides: PartSide[]): number => {
-    const onSides = marked.filter((e) => sides.includes(e.edge.side));
-    if (!onSides.length) return 0;
-    const reach = Math.max(
-      ...onSides.map((e) => Math.max(m.depth(e.edge.ops), e.tag ? e.tag.reach : 0)),
-    );
-    return reach + m.u * 0.4;
+
+  // فضای آزاد وسط برای نام: منهای عمق علائم، برچسب‌ها و اعداد اندازه
+  const reachOf = (side: PartSide): number => {
+    const e = marked.find((item) => item.edge.side === side);
+    const tagReach = e?.tag
+      ? side === 'left' || side === 'right'
+        ? Math.abs(e.tag.cx - (side === 'left' ? x : x + w)) + e.tag.halfW
+        : Math.abs(e.tag.cy - (side === 'top' ? y : y + h)) + m.tagR
+      : 0;
+    const dimReach = dims.find((d) => d.side === side)?.reach ?? 0;
+    return Math.max(markDepth(side), tagReach, dimReach);
   };
-  const reserveX = reserveOf(['left', 'right']);
-  const reserveY = reserveOf(['top', 'bottom']);
-  const center = buildCenterLines(placement, source, name, reserveX, reserveY);
+  const gapIn = m.u * 0.6;
+  const innerX0 = x + reachOf('left') + gapIn;
+  const innerX1 = x + w - reachOf('right') - gapIn;
+  const innerY0 = y + reachOf('top') + gapIn;
+  const innerY1 = y + h - reachOf('bottom') - gapIn;
+  const nameFit = fitName(name, innerX1 - innerX0, innerY1 - innerY0);
+  const nameX = (innerX0 + innerX1) / 2;
+  const nameY = (innerY0 + innerY1) / 2;
 
   const renderCenter = () => {
-    const transform = isRotated ? `rotate(-90 ${cx} ${cy})` : undefined;
-    if (!center) {
-      if (Math.min(w, h) >= 14) {
-        return (
-          <text
-            x={cx}
-            y={cy}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fontSize={Math.min(30, Math.min(w, h) / 1.6)}
-            fontWeight="800"
-            fill={INK}
-            pointerEvents="none"
-            style={{ fontFamily: FONT_FAMILY }}
-          >
-            {placement.instanceIndex}
-          </text>
-        );
-      }
-      return null;
+    if (nameFit.size >= NAME_FONT_MIN_MM) {
+      return (
+        <text
+          x={nameX}
+          y={nameY}
+          transform={nameFit.vertical ? `rotate(-90 ${nameX} ${nameY})` : undefined}
+          textAnchor="middle"
+          dominantBaseline="central"
+          fontSize={nameFit.size}
+          fontWeight="900"
+          fill={INK}
+          pointerEvents="none"
+          style={{ fontFamily: FONT_FAMILY, direction: 'rtl' }}
+        >
+          {name}
+        </text>
+      );
     }
-    const { lines, fontSize } = center;
-    const lineStep = fontSize * 1.3;
-    const firstY = cy - ((lines.length - 1) * lineStep) / 2;
-    return (
-      <g transform={transform} pointerEvents="none">
-        {lines.map((line, i) => (
-          <text
-            key={i}
-            x={cx}
-            y={firstY + i * lineStep}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fontSize={i === 0 && lines.length === 3 ? fontSize * 1.05 : fontSize}
-            fontWeight={i === 0 && lines.length === 3 ? '900' : '700'}
-            fill={INK}
-            style={{ fontFamily: FONT_FAMILY, direction: 'rtl' }}
-          >
-            {line}
-          </text>
-        ))}
-      </g>
-    );
+    if (Math.min(w, h) >= 14 && dims.length === 0) {
+      return (
+        <text
+          x={cx}
+          y={cy}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontSize={Math.min(30, Math.min(w, h) / 1.6)}
+          fontWeight="800"
+          fill={INK}
+          pointerEvents="none"
+          style={{ fontFamily: FONT_FAMILY }}
+        >
+          {placement.instanceIndex}
+        </text>
+      );
+    }
+    return null;
   };
+
+  const renderDims = () =>
+    dims.map((d) => (
+      <text
+        key={d.side}
+        x={d.x}
+        y={d.y}
+        transform={d.rotate ? `rotate(-90 ${d.x} ${d.y})` : undefined}
+        textAnchor="middle"
+        dominantBaseline="central"
+        fontSize={d.fontSize}
+        fontWeight="800"
+        fill={INK}
+        pointerEvents="none"
+        style={{ fontFamily: FONT_FAMILY }}
+      >
+        {d.text}
+      </text>
+    ));
 
   const flagsSummary = source
     ? [
@@ -453,6 +493,7 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
         tag ? <EdgeTag key={edge.side} edge={edge} tag={tag} m={m} /> : null,
       )}
 
+      {renderDims()}
       {renderCenter()}
     </g>
   );
@@ -642,8 +683,8 @@ export default function CuttingMap({ sheets, stock, parts, forPrint = false }: C
       {!forPrint && (
         <p className="mt-2 text-[11px] leading-5 text-slate-400">
           مبدأ نقشه (۰،۰) گوشهٔ شروع ورق است؛ محور افقی در جهت طول ورق و محور عمودی در جهت عرض آن.
-          فاصله‌های باریک بین قطعات همان خوراک تیغه (Kerf) است. داخل هر قطعه نام و ابعادش
-          («طول» و «عرض») نوشته شده و عملیات هر لبه روی خودِ همان لبه علامت خورده است:
+          فاصله‌های باریک بین قطعات همان خوراک تیغه (Kerf) است. وسط هر قطعه نامش و کنار
+          هر ضلع اندازهٔ همان ضلع نوشته شده و عملیات هر لبه روی خودِ همان لبه علامت خورده است:
           نوار مشکی توپر = نوار، کانال دو خطی = شیار و خط دندانه‌ای = فارسی ۴۵°
           (حرف «ن / ش / ف» در برچسب گرد کنار لبه)؛ روی هر قطعه مکث کنید تا جزئیاتش را ببینید.
         </p>
