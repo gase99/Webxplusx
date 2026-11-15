@@ -223,21 +223,64 @@ def page_labels(local):
     return im
 
 def page_exports(local):
-    im=draw_background(); draw_header(im,3); draw_title(im,"مرحلهٔ ۴","خروجی دلخواهتان را بگیرید","برای چاپ، ذخیره، اشتراک‌گذاری یا ارسال به دستگاه CNC")
-    cards=[("چاپ","نقشه و فهرست قطعات","مناسب استفاده در کارگاه",C["blue"],C["blue_pale"],"A4"),
-           ("PDF","نقشه و لیبل‌ها","برای موبایل و اشتراک‌گذاری",C["violet"],C["violet_pale"],"PDF"),
-           ("DXF","فایل برای CNC","مختصات و لایه‌های تفکیک‌شده",C["teal"],C["teal_pale"],"DXF")]
-    reveal=max(0,min(1,(local-0.10)/0.6)); n=math.ceil(reveal*3)
-    for i,(title,desc,sub,accent,pale,tag) in enumerate(cards[:n]):
-        y=365+i*215
-        shadow_card(im,(54,y,666,y+184),26)
+    im=draw_background(); draw_header(im,3)
+    draw_title(im,"مرحلهٔ ۴","چاپ و خروجی‌های آماده","هر ورق یک صفحهٔ A4؛ فهرست قطعات و فاکتور در صفحهٔ پایانی")
+    # Print preview reflects the current print/PDF pagination exactly:
+    # one full A4 page per stock sheet, then a separate grouped parts/materials page.
+    shadow_card(im,(42,348,678,862),30)
+    d=ImageDraw.Draw(im)
+    text(d,(642,385),"پیش‌نمایش چاپ  •  صفحه‌بندی تفکیک‌شده",16,C["ink"],True,anchor="rm")
+    pages=[("ورق ۱","نقشهٔ برش",0),("ورق ۲ / …","نقشهٔ برش",1),("صفحهٔ پایانی","فهرست + فاکتور",2)]
+    reveal=max(0,min(1,(local-0.10)/0.56)); n=math.ceil(reveal*3)
+    for i,(tag,title,kind) in enumerate(pages[:n]):
+        x=67+i*202; y=423; pw=180; ph=340
+        # page tab and physical-looking A4 sheet
+        pill(d,(x+pw/2,y+1),tag,C["blue_pale"] if i<2 else C["teal_pale"],C["blue"] if i<2 else C["teal"],12,118,30)
+        rounded(d,(x,y+22,x+pw,y+ph),12,C["white"],"#DCE4EF",2)
+        text(d,(x+pw-12,y+49),title,12,C["ink"],True,anchor="rm")
+        d.line((x+12,y+62,x+pw-12,y+62),fill=C["line"],width=2)
+        if kind < 2:
+            text(d,(x+pw/2,y+79),f"3660 × 1830 mm  •  {kind+1}",9,C["muted"],True,direction=False)
+            # miniature sheet plan with clear pieces and hatched remainder
+            bx0,by0,bx1,by1=x+15,y+100,x+pw-15,y+252
+            rounded(d,(bx0,by0,bx1,by1),6,"#FFFFFF","#172033",2)
+            # Light diagonal hatch represents scrap in the monochrome workshop print.
+            for hatch_x in range(bx0+4,bx1-4,10):
+                d.line((hatch_x,by0+4,min(hatch_x+32,bx1-4),min(by0+36,by1-4)),fill="#D7DCE4",width=1)
+            blocks=[(bx0+5,by0+5,bx0+82,by0+57),(bx0+86,by0+5,bx1-5,by0+57),
+                    (bx0+5,by0+61,bx0+59,by1-5),(bx0+63,by0+61,bx0+119,by0+109),
+                    (bx0+123,by0+61,bx1-5,by1-5)]
+            for block_index,(ax,ay,bx,by) in enumerate(blocks,1):
+                rounded(d,(ax,ay,bx,by),3,"#FFFFFF","#172033",2)
+                text(d,((ax+bx)//2,(ay+by)//2),f"{block_index:02d}",8,"#172033",True,direction=False)
+            text(d,(x+pw/2,y+273),"نقشهٔ سیاه‌وسفید",10,C["muted"],False)
+            text(d,(x+pw/2,y+294),"ابعاد • علائم • پرت",9,"#172033",True)
+        else:
+            # grouped-part table and materials invoice, as in the final print page
+            rounded(d,(x+10,y+84,x+pw-10,y+112),5,"#F5F7FB")
+            text(d,(x+pw-18,y+98),"فهرست قطعات",9,C["ink"],True,anchor="rm")
+            for row in range(5):
+                yy=y+125+row*22
+                d.line((x+14,yy+10,x+pw-14,yy+10),fill="#E7ECF3",width=1)
+                text(d,(x+pw-18,yy),f"قطعهٔ {row+1}",8,C["muted"],False,anchor="rm")
+                text(d,(x+21,yy),f"{450-row*22} × {148+row*12}",7,C["ink"],True,direction=False,anchor="lm")
+            rounded(d,(x+12,y+246,x+pw-12,y+318),8,"#F8F9FB","#AEB7C4",1)
+            text(d,(x+pw/2,y+261),"فاکتور متریال",9,C["ink"],True)
+            text(d,(x+pw/2,y+283),"نوار  •  شیار  •  فارسی",8,C["ink"],True)
+            text(d,(x+pw/2,y+303),"جمع متراژ مصرفی",8,C["muted"],False)
+    # PDF on mobile / sharing and DXF for CNC
+    tiles=[("PDF","ذخیره و اشتراک‌گذاری",C["violet"],C["violet_pale"]),
+           ("DXF","ارسال نقشه به CNC",C["teal"],C["teal_pale"])]
+    ntiles=max(0,min(2,math.ceil((local-0.46)/0.30*2)))
+    for i,(tag,label,accent,pale) in enumerate(tiles[:ntiles]):
+        x=52+i*312
+        shadow_card(im,(x,900,x+292,1090),24)
         d=ImageDraw.Draw(im)
-        rounded(d,(82,y+32,180,y+130),25,pale)
-        text(d,(131,y+81),tag,20,accent,True,direction=False)
-        text(d,(626,y+58),title,24,C["ink"],True,anchor="rm")
-        text(d,(626,y+101),desc,16,accent,True,anchor="rm")
-        text(d,(626,y+139),sub,13,C["muted"],False,anchor="rm")
-    draw_footer(im,"یک پروژه؛ چاپ، PDF و DXF در یک مسیر ساده",local)
+        rounded(d,(x+16,922,x+98,1004),22,pale)
+        text(d,(x+57,963),tag,18,accent,True,direction=False)
+        text(d,(x+270,951),label,15,C["ink"],True,anchor="rm")
+        text(d,(x+270,985),"آمادهٔ دریافت",12,accent,True,anchor="rm")
+    draw_footer(im,"چاپ و PDF دقیقاً همین صفحه‌بندی را حفظ می‌کنند",local)
     return im
 
 def page_outro(local):
