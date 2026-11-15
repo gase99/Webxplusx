@@ -133,7 +133,12 @@ input[type="checkbox"] {
 }
 .print-doc-map .map-legend svg {
   width: 7mm !important;
-  height: 4.6mm !important;
+  height: 3.6mm !important;
+}
+.print-doc-map .map-legend-chip {
+  width: 3.6mm !important;
+  height: 3.6mm !important;
+  font-size: 7pt !important;
 }
 
 /* نقشه‌ها: هر ورق تمام‌عرض و زیر هم (در چاپ هرکدام در صفحهٔ خودش) */
