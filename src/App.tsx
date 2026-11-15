@@ -46,6 +46,7 @@ export default function App() {
   );
   const [settings, setSettings] = useState<LayoutSettings>(initialWorkspace.settings);
   const [layoutState, setLayoutState] = useState<LayoutState | null>(initialWorkspace.layoutState);
+  const [activeStep, setActiveStep] = useState<'setup' | 'analysis' | 'labels' | 'exports'>('setup');
 
   // --- فاز ۵/۶: مدیریت پروژه‌ها — ذخیره در IndexedDB (Dexie) ---
   const [projects, setProjects] = useState<Project[]>([]);
@@ -289,11 +290,11 @@ export default function App() {
   return (
     <div className="min-h-screen">
       {/* سربرگ نرم‌افزار: لوگو و سازنده (راست) — مدیریت پروژه‌ها (چپ) */}
-      <header className="sticky top-0 z-30 bg-slate-900/95 text-white shadow-md backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/95 text-slate-900 shadow-sm backdrop-blur">
         <div className="mx-auto flex max-w-[1440px] flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 sm:px-6">
           {/* سمت راست: لوگو و نام نرم‌افزار */}
           <div className="flex items-center gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-sky-600 text-white shadow-inner">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white shadow-sm">
               <LogoIcon />
             </span>
             <div className="leading-tight">
@@ -366,7 +367,7 @@ export default function App() {
 
       <main className="mx-auto max-w-[1440px] space-y-4 px-4 py-4 sm:px-6">
         {/* نوار خلاصه */}
-        <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+        {activeStep === 'setup' && <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
           <StatCard title="ردیف معتبر" value={faNumber.format(stats.rowCount)} hint="دارای ابعاد کامل" />
           <StatCard title="مجموع قطعات" value={faNumber.format(stats.totalQty)} hint="با احتساب تعداد هر ردیف" />
           <StatCard title="مساحت کل" value={`${faDecimal.format(stats.totalAreaM2)} m²`} hint="متر مربع" />
@@ -388,15 +389,36 @@ export default function App() {
             hint="متر طول شیار ورق ۳ میل"
             accent="text-amber-700"
           />
-        </section>
+        </section>}
 
-        {stats.incomplete > 0 && (
+        <nav aria-label="مراحل کار" className="rounded-2xl bg-white p-2 shadow-md ring-1 ring-slate-300/70">
+          <ol className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {([
+              ['setup', '۱', 'تعریف ورق و قطعات'],
+              ['analysis', '۲', 'تحلیل و نقشه'],
+              ['labels', '۳', 'لیبل‌ها'],
+              ['exports', '۴', 'خروجی‌ها'],
+            ] as const).map(([step, number, label]) => (
+              <li key={step}>
+                <button type="button" onClick={() => setActiveStep(step)} aria-current={activeStep === step ? 'step' : undefined}
+                  className={`flex w-full items-center gap-2 rounded-xl px-3 py-3 text-start text-sm font-extrabold transition ${activeStep === step ? 'bg-sky-700 text-white shadow-sm' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}>
+                  <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs ${activeStep === step ? 'bg-white/20' : 'bg-white ring-1 ring-slate-200'}`}>{number}</span>
+                  <span>{label}</span>
+                  {activeStep === step && <span className="ms-auto text-[10px] font-bold opacity-75">مرحلهٔ جاری</span>}
+                </button>
+              </li>
+            ))}
+          </ol>
+        </nav>
+
+        {stats.incomplete > 0 && activeStep === 'setup' && (
           <p className="rounded-lg bg-rose-50 px-4 py-2.5 text-sm font-medium text-rose-800 ring-1 ring-rose-200">
             ⚠ {faNumber.format(stats.incomplete)} ردیف ناقص است (نام یا ابعاد آن کامل نشده) و در
             محاسبات بالا لحاظ نشده است.
           </p>
         )}
 
+        {activeStep === 'setup' && <>
         {/* راهنمای ناوبری کیبورد */}
         <section className="flex flex-wrap items-center gap-x-2 gap-y-2 rounded-2xl bg-white px-4 py-3 text-sm shadow-sm ring-1 ring-slate-300/70">
           <span className="font-extrabold text-slate-700">⌨️ جریان ورود سریع با کیبورد:</span>
@@ -415,7 +437,10 @@ export default function App() {
         </section>
 
         {/* فاز ۲: تنظیمات صفحهٔ خام + محاسبهٔ چیدمان */}
+        </>}
+
         <LayoutPanel
+          page={activeStep}
           parts={rows}
           settings={settings}
           onSettingsChange={setSettings}
@@ -423,6 +448,7 @@ export default function App() {
           onLayoutStateChange={setLayoutState}
         />
 
+        {activeStep === 'setup' && <>
         {/* جدول اصلی */}
         <DataEntryTable
           rows={rows}
@@ -494,6 +520,7 @@ export default function App() {
             </p>
           </div>
         </section>
+        </>}
 
         <footer className="pb-4 pt-1 text-center text-xs leading-6 text-slate-500">
           <span dir="ltr">A-Cut 2Dpro</span> — طراحی و توسعه: <strong className="text-slate-700">عباس کروشاد</strong>
@@ -527,7 +554,7 @@ function StatCard({
   accent?: string;
 }) {
   return (
-    <div className="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-300/70">
+    <div className="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200">
       <p className="text-xs font-semibold text-slate-500">{title}</p>
       <p className={`mt-1 text-xl font-black tabular-nums ${accent}`}>{value}</p>
       <p className="mt-0.5 text-[11px] text-slate-400">{hint}</p>

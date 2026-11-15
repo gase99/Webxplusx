@@ -1,3 +1,5 @@
+import { normalizeEdgeCount } from './types/part';
+
 /**
  * A-Cut 2Dpro — موتور بهینه‌سازی برش (فاز ۲)
  * ==========================================
@@ -48,6 +50,9 @@ export interface LayoutPartInput {
   length: number; // mm
   width: number; // mm
   qty: number;
+  /** لبه‌های نوارشده؛ برای کسر خودکار ضخامت نوار از ابعاد */
+  bandLength?: number;
+  bandWidth?: number;
 }
 
 /** صفحهٔ خام (Stock) */
@@ -59,6 +64,8 @@ export interface StockSheet {
 export interface LayoutOptions {
   /** ضخامت تیغهٔ اره به میلی‌متر (معمولاً ۳ تا ۴) */
   kerf: number;
+  /** ضخامت نوار لبه (mm)، بر اساس تعداد لبه‌های نوارشده از ابعاد کسر می‌شود */
+  bandThickness?: number;
   /**
    * چرخش ۹۰ درجهٔ قطعات مجاز است؟
    * (در فازهای بعدی با اضافه‌شدن «قفل گرین/رگهٔ چوب» این گزینه به‌ازای هر
@@ -127,6 +134,8 @@ export interface LayoutSummary {
 export interface LayoutResult {
   stock: StockSheet;
   kerf: number;
+  /** ضخامت نوار مبنای محاسبه (mm) */
+  bandThickness: number;
   allowRotation: boolean;
   /** چیدمان هر صفحه به‌تفکیک */
   sheets: SheetLayout[];
@@ -410,6 +419,7 @@ export function calculateLayout(
   options: LayoutOptions,
 ): LayoutResult {
   const kerf = Math.max(0, options.kerf || 0);
+  const bandThickness = Math.max(0, options.bandThickness || 0);
   const allowRotation = options.allowRotation ?? true;
   const stockArea = stock.length > 0 && stock.width > 0 ? stock.length * stock.width : 0;
 
@@ -418,16 +428,18 @@ export function calculateLayout(
   let order = 0;
   for (const part of parts) {
     const qty = Math.floor(part.qty);
-    if (!(part.length > 0) || !(part.width > 0) || !(qty > 0)) continue;
+    const cutLength = part.length - normalizeEdgeCount(part.bandWidth) * bandThickness;
+    const cutWidth = part.width - normalizeEdgeCount(part.bandLength) * bandThickness;
+    if (!(cutLength > 0) || !(cutWidth > 0) || !(qty > 0)) continue;
     for (let i = 1; i <= qty; i++) {
       instances.push({
         id: part.id,
         name: part.name,
         instanceIndex: i,
-        length: part.length,
-        width: part.width,
-        area: part.length * part.width,
-        maxDimension: Math.max(part.length, part.width),
+        length: cutLength,
+        width: cutWidth,
+        area: cutLength * cutWidth,
+        maxDimension: Math.max(cutLength, cutWidth),
         originalOrder: order++,
       });
     }
@@ -504,6 +516,7 @@ export function calculateLayout(
   return {
     stock,
     kerf,
+    bandThickness,
     allowRotation,
     sheets: sheetLayouts,
     placements,

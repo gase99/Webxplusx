@@ -13,6 +13,7 @@ export interface LayoutSettings {
   stockLength: number; // طول صفحهٔ خام (mm)
   stockWidth: number; // عرض صفحهٔ خام (mm)
   kerf: number; // ضخامت تیغهٔ اره (mm)
+  bandThickness: number; // ضخامت نوار؛ از ابعاد قطعه بر اساس لبه‌های نوارشده کسر می‌شود (mm)
   allowRotation: boolean; // چرخش ۹۰ درجهٔ قطعات مجاز است؟
 }
 
@@ -20,6 +21,7 @@ export const DEFAULT_LAYOUT_SETTINGS: LayoutSettings = {
   stockLength: 3660,
   stockWidth: 1830,
   kerf: 4,
+  bandThickness: 0,
   allowRotation: true,
 };
 
@@ -71,6 +73,7 @@ export function computeLayoutSignature(parts: CutPart[], settings: LayoutSetting
     stockLength: settings.stockLength,
     stockWidth: settings.stockWidth,
     kerf: settings.kerf,
+    bandThickness: settings.bandThickness,
     allowRotation: settings.allowRotation,
   });
 }
@@ -109,6 +112,7 @@ export function settingsFromLayout(result: LayoutResult): LayoutSettings {
     stockLength: result.stock.length,
     stockWidth: result.stock.width,
     kerf: result.kerf,
+    bandThickness: result.bandThickness ?? 0,
     allowRotation: result.allowRotation,
   };
 }

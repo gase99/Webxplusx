@@ -302,11 +302,11 @@ export default function DataEntryTable({
         <table className="w-full min-w-[1020px] border-collapse text-sm">
           <thead>
             <tr className="text-center">
-              <th rowSpan={2} className="sticky top-0 z-20 h-11 w-12 border border-slate-300 bg-slate-700 px-1 text-white">ردیف</th>
-              <th rowSpan={2} className="sticky top-0 z-20 border border-slate-300 bg-slate-700 px-2 text-white">نام قطعه</th>
-              <th rowSpan={2} className="sticky top-0 z-20 w-28 border border-slate-300 bg-slate-700 px-2 text-white">طول <span className="block text-[10px] font-normal text-slate-300">(میلی‌متر)</span></th>
-              <th rowSpan={2} className="sticky top-0 z-20 w-28 border border-slate-300 bg-slate-700 px-2 text-white">عرض <span className="block text-[10px] font-normal text-slate-300">(میلی‌متر)</span></th>
-              <th rowSpan={2} className="sticky top-0 z-20 w-20 border border-slate-300 bg-slate-700 px-2 text-white">تعداد</th>
+              <th rowSpan={2} className="sticky top-0 z-20 h-11 w-12 border border-slate-200 bg-slate-100 px-1 text-slate-700">ردیف</th>
+              <th rowSpan={2} className="sticky top-0 z-20 border border-slate-200 bg-slate-100 px-2 text-slate-700">نام قطعه</th>
+              <th rowSpan={2} className="sticky top-0 z-20 w-28 border border-slate-200 bg-slate-100 px-2 text-slate-700">طول <span className="block text-[10px] font-normal text-slate-500">(میلی‌متر)</span></th>
+              <th rowSpan={2} className="sticky top-0 z-20 w-28 border border-slate-200 bg-slate-100 px-2 text-slate-700">عرض <span className="block text-[10px] font-normal text-slate-500">(میلی‌متر)</span></th>
+              <th rowSpan={2} className="sticky top-0 z-20 w-20 border border-slate-200 bg-slate-100 px-2 text-slate-700">تعداد</th>
               <th colSpan={2} className={`sticky top-0 z-20 border px-2 py-1.5 ${GROUP.band.header}`}>
                 <span className="inline-flex items-center gap-1.5 font-extrabold"><BandIcon /> نوار <span className="text-[10px] font-medium opacity-70">(لبه‌چسب)</span> <span className="ms-1 rounded bg-white/70 px-1 py-0.5 text-[10px] font-black text-teal-800">۰/۱/۲</span></span>
               </th>
@@ -316,7 +316,7 @@ export default function DataEntryTable({
               <th colSpan={2} className={`sticky top-0 z-20 border px-2 py-1.5 ${GROUP.groove.header}`}>
                 <span className="inline-flex items-center gap-1.5 font-extrabold"><GrooveIcon /> شیار <span className="text-[10px] font-medium opacity-70">(ورق ۳ میل)</span> <span className="ms-1 rounded bg-white/70 px-1 py-0.5 text-[10px] font-black text-amber-800">۰/۱/۲</span></span>
               </th>
-              <th rowSpan={2} className="sticky top-0 z-20 w-24 border border-slate-300 bg-slate-700 px-1 text-white">عملیات</th>
+              <th rowSpan={2} className="sticky top-0 z-20 w-24 border border-slate-200 bg-slate-100 px-1 text-slate-700">عملیات</th>
             </tr>
             <tr className="text-center text-xs">
               <th className={`sticky top-11 z-20 w-[76px] border px-1 py-1.5 ${GROUP.band.subHeader}`}>طول</th>
