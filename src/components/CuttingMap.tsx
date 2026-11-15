@@ -123,7 +123,8 @@ interface MarkMetrics {
 
 function markMetrics(w: number, h: number, s: number): MarkMetrics {
   const minDim = Math.min(w, h);
-  const u = Math.max(Math.min(6 * s, minDim * 0.075), 0.6 * s);
+  // سقف minDim*0.08: حتی با سه عملیات روی دو لبهٔ روبه‌رو، علائم به هم نمی‌رسند (عمق کل = ۵u)
+  const u = Math.min(Math.max(Math.min(6 * s, minDim * 0.075), 0.6 * s), minDim * 0.08);
   const gap = u * 0.6;
   const size: Record<EdgeOp, number> = { band: u, farsi: u * 1.1, groove: u * 1.7 };
   const zone = (ops: EdgeOp[], op: EdgeOp): [number, number] => {
@@ -212,12 +213,44 @@ function EdgeMarks({
   );
 }
 
-function EdgeTag({ edge, frame, m }: { edge: EdgeLayout; frame: EdgeFrame; m: MarkMetrics }) {
+interface TagLayout {
+  cx: number;
+  cy: number;
+  halfW: number;
+  /** فاصلهٔ دورترین نقطهٔ برچسب از لبه */
+  reach: number;
+}
+
+/**
+ * جای برچسب حرفی یک لبه؛ برچسب کپسولی همیشه افقی است، پس روی لبه‌های چپ/راست
+ * پهنای آن در راستای عمق قرار می‌گیرد. اگر کامل داخل قطعه جا نشود null برمی‌گردد.
+ */
+function tagLayout(
+  edge: EdgeLayout,
+  frame: EdgeFrame,
+  m: MarkMetrics,
+  w: number,
+  h: number,
+): TagLayout | null {
+  const r = m.tagR;
+  if (r <= 0) return null;
+  // برای چند عملیات روی یک لبه، برچسب کشیده (کپسولی) می‌شود
+  const halfW = r + (edge.ops.length - 1) * r * 0.85;
+  const vertical = frame.nx !== 0;
+  const halfAcross = vertical ? halfW : r;
+  const halfAlong = vertical ? r : halfW;
+  const depth = Math.max(halfAcross * 1.1, m.depth(edge.ops) / 2);
+  const reach = depth + halfAcross;
+  const across = vertical ? w : h;
+  if (reach > across / 2 || halfAlong > (frame.len / 2) * 0.9) return null;
+  const [cx, cy] = at(frame, frame.len / 2, depth);
+  return { cx, cy, halfW, reach };
+}
+
+function EdgeTag({ edge, tag, m }: { edge: EdgeLayout; tag: TagLayout; m: MarkMetrics }) {
   const r = m.tagR;
   const letters = edge.ops.map((op) => OP_LETTER[op]);
-  // برای چند عملیات روی یک لبه، برچسب کشیده (کپسولی) می‌شود
-  const halfW = r + (letters.length - 1) * r * 0.85;
-  const [cx, cy] = at(frame, frame.len / 2, Math.max(r * 1.1, m.depth(edge.ops) / 2));
+  const { cx, cy, halfW } = tag;
   const fontSize = r * 1.25;
   return (
     <g pointerEvents="none">
@@ -329,11 +362,17 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
 
   const edges = edgeLayouts(source, isRotated);
   const m = markMetrics(w, h, s);
+  const marked = edges.map((edge) => {
+    const frame = edgeFrame(edge.side, x, y, w, h);
+    return { edge, frame, tag: tagLayout(edge, frame, m, w, h) };
+  });
   const reserveOf = (sides: PartSide[]): number => {
-    const marked = edges.filter((e) => sides.includes(e.side));
-    if (!marked.length) return 0;
-    const depth = Math.max(...marked.map((e) => m.depth(e.ops)));
-    return Math.max(depth, m.tagR ? m.tagR * 2.3 : 0) + m.u * 0.4;
+    const onSides = marked.filter((e) => sides.includes(e.edge.side));
+    if (!onSides.length) return 0;
+    const reach = Math.max(
+      ...onSides.map((e) => Math.max(m.depth(e.edge.ops), e.tag ? e.tag.reach : 0)),
+    );
+    return reach + m.u * 0.4;
   };
   const reserveX = reserveOf(['left', 'right']);
   const reserveY = reserveOf(['top', 'bottom']);
@@ -403,17 +442,16 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
 
       <rect x={x} y={y} width={w} height={h} fill={PAPER} stroke={INK} strokeWidth={1.8 * s} />
 
-      {edges.map((edge) => (
-        <EdgeMarks key={edge.side} edge={edge} frame={edgeFrame(edge.side, x, y, w, h)} m={m} />
+      {marked.map(({ edge, frame }) => (
+        <EdgeMarks key={edge.side} edge={edge} frame={frame} m={m} />
       ))}
 
       {/* خط دور دوباره روی علائم تا مرز قطعه همیشه واضح بماند */}
       <rect x={x} y={y} width={w} height={h} fill="none" stroke={INK} strokeWidth={1.8 * s} />
 
-      {m.tagR > 0 &&
-        edges.map((edge) => (
-          <EdgeTag key={edge.side} edge={edge} frame={edgeFrame(edge.side, x, y, w, h)} m={m} />
-        ))}
+      {marked.map(({ edge, tag }) =>
+        tag ? <EdgeTag key={edge.side} edge={edge} tag={tag} m={m} /> : null,
+      )}
 
       {renderCenter()}
     </g>
