@@ -23,6 +23,8 @@ interface LabelSheetProps {
   placements: PlacedPart[];
   /** ردیف‌های جدول (اسنپ‌شات زمان محاسبه) برای فلگ‌های کارگاهی و ابعاد اصلی */
   parts: CutPart[];
+  /** رنگ نوار/استریپ انتخاب‌شده در داشبورد */
+  bandColor?: string;
 }
 
 interface LabelEntry {
@@ -41,7 +43,7 @@ function describeFlags(lengthCount: number, widthCount: number): string {
   return 'ندارد';
 }
 
-export default function LabelSheet({ placements, parts }: LabelSheetProps) {
+export default function LabelSheet({ placements, parts, bandColor = '#0d9488' }: LabelSheetProps) {
   const partsById = new Map(parts.map((p) => [p.id, p]));
 
   // شمارهٔ هر قطعه داخل ورق خودش (برای کد S1-03 و…) — هم‌ترتیب با خروجی DXF
@@ -63,7 +65,11 @@ export default function LabelSheet({ placements, parts }: LabelSheetProps) {
       {pages.map((page, pageIndex) => (
         <div key={pageIndex} className="label-page">
           {page.map((entry) => (
-            <PartLabel key={`${entry.placement.id}-${entry.placement.sheetIndex}-${entry.indexInSheet}`} entry={entry} />
+            <PartLabel
+              key={`${entry.placement.id}-${entry.placement.sheetIndex}-${entry.indexInSheet}`}
+              entry={entry}
+              bandColor={bandColor}
+            />
           ))}
           {/* خانه‌های خالیِ صفحهٔ آخر تا تراز شبکه روی کاغذ برچسبی حفظ شود */}
           {Array.from({ length: LABELS_PER_PAGE - page.length }).map((_, i) => (
@@ -77,7 +83,7 @@ export default function LabelSheet({ placements, parts }: LabelSheetProps) {
 
 /* ------------------------------------------------------------------ */
 
-function PartLabel({ entry }: { entry: LabelEntry }) {
+function PartLabel({ entry, bandColor }: { entry: LabelEntry; bandColor: string }) {
   const { placement: p, indexInSheet, source } = entry;
   const code = getPlacementCode(p.sheetIndex, indexInSheet);
   const name = (p.name ?? source?.name ?? '').trim() || 'بدون نام';
@@ -85,7 +91,7 @@ function PartLabel({ entry }: { entry: LabelEntry }) {
 
   const ops = source
     ? [
-        { label: 'نوار', value: describeFlags(source.bandLength, source.bandWidth), dot: '#0d9488', has: source.bandLength || source.bandWidth },
+        { label: 'نوار', value: describeFlags(source.bandLength, source.bandWidth), dot: bandColor, has: source.bandLength || source.bandWidth },
         { label: 'فارسی ۴۵°', value: describeFlags(source.farsiLength, source.farsiWidth), dot: '#dc2626', has: source.farsiLength || source.farsiWidth },
         { label: 'شیار', value: describeFlags(source.grooveLength, source.grooveWidth), dot: '#d97706', has: source.grooveLength || source.grooveWidth },
       ]

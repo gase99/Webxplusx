@@ -66,24 +66,24 @@ function parseEdgeCount(raw: string): EdgeCount {
 /** هر گروه (نوار/فارسی/شیار) رنگ متمایز مخصوص خودش را دارد */
 const GROUP = {
   band: {
-    header: 'bg-teal-200/80 text-teal-950 border-teal-300',
-    subHeader: 'bg-teal-100 text-teal-900 border-teal-200',
-    cell: 'bg-teal-50 border-teal-200/80',
-    cellActive: 'bg-teal-200/70',
+    header: 'bg-teal-200/80 text-teal-950 border-teal-300 dark:bg-teal-900/70 dark:text-teal-50 dark:border-teal-600',
+    subHeader: 'bg-teal-100 text-teal-900 border-teal-200 dark:bg-teal-950/80 dark:text-teal-100 dark:border-teal-700',
+    cell: 'bg-teal-50 border-teal-200/80 dark:bg-teal-950/45 dark:border-teal-800',
+    cellActive: 'bg-teal-200/70 dark:bg-teal-800/75',
     ring: 'focus:ring-teal-500',
   },
   farsi: {
-    header: 'bg-rose-200/90 text-rose-950 border-rose-300',
-    subHeader: 'bg-rose-100 text-rose-900 border-rose-200',
-    cell: 'bg-rose-50 border-rose-200/80',
-    cellActive: 'bg-rose-200/80',
+    header: 'bg-rose-200/90 text-rose-950 border-rose-300 dark:bg-rose-900/70 dark:text-rose-50 dark:border-rose-600',
+    subHeader: 'bg-rose-100 text-rose-900 border-rose-200 dark:bg-rose-950/80 dark:text-rose-100 dark:border-rose-700',
+    cell: 'bg-rose-50 border-rose-200/80 dark:bg-rose-950/45 dark:border-rose-800',
+    cellActive: 'bg-rose-200/80 dark:bg-rose-800/75',
     ring: 'focus:ring-rose-500',
   },
   groove: {
-    header: 'bg-amber-200/80 text-amber-950 border-amber-300',
-    subHeader: 'bg-amber-100 text-amber-900 border-amber-200',
-    cell: 'bg-amber-50 border-amber-200/80',
-    cellActive: 'bg-amber-200/70',
+    header: 'bg-amber-200/80 text-amber-950 border-amber-300 dark:bg-amber-900/70 dark:text-amber-50 dark:border-amber-600',
+    subHeader: 'bg-amber-100 text-amber-900 border-amber-200 dark:bg-amber-950/80 dark:text-amber-100 dark:border-amber-700',
+    cell: 'bg-amber-50 border-amber-200/80 dark:bg-amber-950/45 dark:border-amber-800',
+    cellActive: 'bg-amber-200/70 dark:bg-amber-800/75',
     ring: 'focus:ring-amber-500',
   },
 } as const;
@@ -242,7 +242,7 @@ export default function DataEntryTable({
               }
               // Enter بین عددی‌ها حرکت نکند — ولی اجازه می‌دهیم برای راحتی
             }}
-            className={`h-8 w-9 rounded-md border bg-white px-1 text-center text-sm font-black tabular-nums outline-none transition focus:border-slate-400 focus:ring-2 ${group.ring} ${hasValue ? 'border-slate-300 text-slate-900' : 'border-slate-200 text-slate-400 placeholder:text-slate-300'}`}
+            className={`h-9 w-10 rounded-md border bg-white px-1 text-center text-base font-black tabular-nums outline-none transition focus:border-slate-400 focus:ring-2 ${group.ring} ${hasValue ? 'border-slate-300 text-slate-900 dark:text-white' : 'border-slate-200 text-slate-500 placeholder:text-slate-400 dark:text-slate-300'}`}
             title={`${label} — مقدار ۰ بدون، ۱ یک لبه، ۲ هر دو لبه`}
           />
           {isFarsi && (
@@ -257,10 +257,10 @@ export default function DataEntryTable({
   };
 
   const inputBase =
-    'w-full bg-transparent px-2 py-2.5 outline-none transition focus:bg-white focus:shadow-[inset_0_0_0_2px_#0284c7]';
+    'w-full bg-transparent px-2 py-2.5 text-base outline-none transition focus:bg-white focus:shadow-[inset_0_0_0_2px_#0891b2] dark:focus:bg-slate-800';
 
   return (
-    <section className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-300/70">
+    <section className="data-entry overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-300/70">
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-3">
         <button
           type="button"
@@ -291,7 +291,7 @@ export default function DataEntryTable({
         >
           پاک‌کردن همه
         </button>
-        <span className="ms-auto hidden text-xs text-slate-500 lg:block">
+        <span className="ms-auto hidden text-sm font-semibold text-slate-600 lg:block dark:text-slate-300">
           ورودی ۰/۱/۲: ۰ بدون · ۱ یک لبه · ۲ هر دو لبه — ↑/↓ برای تغییر
           <span className="mx-2 text-slate-300">|</span>
           Enter در «تعداد» → ردیف جدید
@@ -299,7 +299,7 @@ export default function DataEntryTable({
       </div>
 
       <div className="table-scroll max-h-[62vh] overflow-auto">
-        <table className="w-full min-w-[1020px] border-collapse text-sm">
+        <table className="w-full min-w-[1060px] border-collapse text-base">
           <thead>
             <tr className="text-center">
               <th rowSpan={2} className="sticky top-0 z-20 h-11 w-12 border border-slate-200 bg-slate-100 px-1 text-slate-700">ردیف</th>

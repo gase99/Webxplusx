@@ -12,9 +12,11 @@ import { createPartId, isValidPart, type CutPart } from './part';
 export interface LayoutSettings {
   stockLength: number; // طول صفحهٔ خام (mm)
   stockWidth: number; // عرض صفحهٔ خام (mm)
-  kerf: number; // ضخامت تیغهٔ اره (mm)
+  kerf: number; // اندازهٔ تیغهٔ اره (mm)
   bandThickness: number; // ضخامت نوار؛ از ابعاد قطعه بر اساس لبه‌های نوارشده کسر می‌شود (mm)
   allowRotation: boolean; // چرخش ۹۰ درجهٔ قطعات مجاز است؟
+  sheetColor: string; // رنگ ورق خام در نمایش نقشه (HEX)
+  bandColor: string; // رنگ نوار/استریپ در نمایش نقشه و لیبل (HEX)
 }
 
 export const DEFAULT_LAYOUT_SETTINGS: LayoutSettings = {
@@ -23,7 +25,13 @@ export const DEFAULT_LAYOUT_SETTINGS: LayoutSettings = {
   kerf: 4,
   bandThickness: 0,
   allowRotation: true,
+  sheetColor: '#f4e7c8',
+  bandColor: '#0d9488',
 };
+
+/** رنگ‌های پیشنهادی ورق و نوار (برای انتخاب سریع در داشبورد) */
+export const SHEET_COLOR_PRESETS = ['#f4e7c8', '#e7e5e4', '#dbeafe', '#dcfce7', '#fce7f3'];
+export const BAND_COLOR_PRESETS = ['#0d9488', '#0284c7', '#7c3aed', '#e11d48', '#b45309'];
 
 export const UNTITLED_PROJECT_NAME = 'پروژهٔ بدون نام';
 
@@ -114,5 +122,7 @@ export function settingsFromLayout(result: LayoutResult): LayoutSettings {
     kerf: result.kerf,
     bandThickness: result.bandThickness ?? 0,
     allowRotation: result.allowRotation,
+    sheetColor: result.sheetColor ?? DEFAULT_LAYOUT_SETTINGS.sheetColor,
+    bandColor: result.bandColor ?? DEFAULT_LAYOUT_SETTINGS.bandColor,
   };
 }

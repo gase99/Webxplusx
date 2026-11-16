@@ -90,7 +90,7 @@ export default function ProjectManager({
 
   return (
     <>
-      <div className="relative" ref={menuRef}>
+      <div className="project-manager relative" ref={menuRef}>
         <button
           type="button"
           onClick={() => setMenuOpen((v) => !v)}
@@ -245,7 +245,7 @@ function ProjectListModal({ projects, currentProjectId, onClose, onOpen, onDelet
         role="dialog"
         aria-modal="true"
         aria-label="پروژه‌های ذخیره‌شده"
-        className="mt-[6vh] w-full max-w-2xl overflow-hidden rounded-2xl bg-white text-slate-800 shadow-2xl ring-1 ring-slate-900/10"
+        className="project-manager-modal mt-[6vh] w-full max-w-2xl overflow-hidden rounded-2xl bg-white text-slate-800 shadow-2xl ring-1 ring-slate-900/10"
       >
         <header className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-5 py-4">
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-100 text-sky-800">

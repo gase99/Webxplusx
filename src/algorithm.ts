@@ -1,4 +1,4 @@
-import { normalizeEdgeCount } from './types/part';
+import { calculateCutDimensions } from './types/part';
 
 /**
  * A-Cut 2Dpro — موتور بهینه‌سازی برش (فاز ۲)
@@ -72,6 +72,10 @@ export interface LayoutOptions {
    *  قطعه قابل‌تنظیم می‌شود؛ فعلاً سراسری است.)
    */
   allowRotation?: boolean;
+  /** رنگ ورق خام برای نمایش نقشه (اختیاری — روی محاسبه اثری ندارد) */
+  sheetColor?: string;
+  /** رنگ نوار/استریپ برای نمایش نقشه (اختیاری — روی محاسبه اثری ندارد) */
+  bandColor?: string;
 }
 
 /** جای یک قطعهٔ چیده‌شده روی یک صفحه — خروجی اصلی الگوریتم (قابل سریالایز به JSON) */
@@ -137,6 +141,10 @@ export interface LayoutResult {
   /** ضخامت نوار مبنای محاسبه (mm) */
   bandThickness: number;
   allowRotation: boolean;
+  /** رنگ ورق خام انتخاب‌شده در زمان محاسبه */
+  sheetColor?: string;
+  /** رنگ نوار/استریپ انتخاب‌شده در زمان محاسبه */
+  bandColor?: string;
   /** چیدمان هر صفحه به‌تفکیک */
   sheets: SheetLayout[];
   /** فهرست تختِ همهٔ قطعات چیده‌شده (مناسب مصرف مستقیم فاز ۳) */
@@ -428,8 +436,8 @@ export function calculateLayout(
   let order = 0;
   for (const part of parts) {
     const qty = Math.floor(part.qty);
-    const cutLength = part.length - normalizeEdgeCount(part.bandWidth) * bandThickness;
-    const cutWidth = part.width - normalizeEdgeCount(part.bandLength) * bandThickness;
+    // کسر خودکار ضخامت نوار/استریپ از ابعاد قطعه — منبع مشترک: types/part.ts
+    const { length: cutLength, width: cutWidth } = calculateCutDimensions(part, bandThickness);
     if (!(cutLength > 0) || !(cutWidth > 0) || !(qty > 0)) continue;
     for (let i = 1; i <= qty; i++) {
       instances.push({
@@ -518,6 +526,8 @@ export function calculateLayout(
     kerf,
     bandThickness,
     allowRotation,
+    sheetColor: options.sheetColor,
+    bandColor: options.bandColor,
     sheets: sheetLayouts,
     placements,
     unplaced,

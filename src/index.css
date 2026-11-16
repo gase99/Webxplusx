@@ -1,14 +1,74 @@
 @import "tailwindcss";
 
+/* Tailwind v4 — دارک‌مود بر پایهٔ کلاس روی <html> */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: "Vazirmatn", "IRANSans", Tahoma, "Segoe UI", Arial, sans-serif;
 }
 
+/* ------------------------------------------------------------------ */
+/*  سیستم رنگ و تایپوگرافی مشترک (لایت / دارک)                        */
+/*  کنتراست متن‌ها عمداً بالا نگه داشته شده است؛ رنگ‌های کم‌کنتراست   */
+/*  قبلی (مثل slate-400) فقط برای حاشیه‌های غیرمهم استفاده می‌شوند.   */
+/* ------------------------------------------------------------------ */
+:root {
+  color-scheme: light;
+  --bg: #edf2fa;
+  --surface: #ffffff;
+  --surface-2: #f5f8fd;
+  --surface-3: #e6edf8;
+  --text: #081120;
+  --muted: #26364d;
+  --subtle: #465a75;
+  --border: #bdcadc;
+  --border-strong: #8093ac;
+  --accent: #0e7490;
+  --accent-2: #6d28d9;
+  --accent-soft: #cffafe;
+  --success: #047857;
+  --danger: #be123c;
+  --warning: #b45309;
+  --focus: #06b6d4;
+  --shadow: 0 20px 50px -32px rgb(15 23 42 / 0.55);
+  --on-accent: #ffffff;
+}
+
+.dark {
+  color-scheme: dark;
+  --bg: #060c17;
+  --surface: #0f1a2c;
+  --surface-2: #16243a;
+  --surface-3: #1d2f4a;
+  --text: #f8fbff;
+  --muted: #dbe7f5;
+  --subtle: #b9c8dc;
+  --border: #3b5271;
+  --border-strong: #6984a7;
+  --accent: #22d3ee;
+  --accent-2: #a78bfa;
+  --accent-soft: #073344;
+  --success: #34d399;
+  --danger: #fb7185;
+  --warning: #fbbf24;
+  --focus: #67e8f9;
+  --shadow: 0 24px 60px -28px rgb(0 0 0 / 0.85);
+  --on-accent: #05121e;
+}
+
 body {
-  @apply text-slate-800 antialiased;
+  @apply antialiased;
   min-height: 100vh;
-  background: #f6f8fc;
+  margin: 0;
+  background:
+    radial-gradient(1100px 560px at 100% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 72%),
+    radial-gradient(900px 500px at 0% 10%, color-mix(in srgb, var(--accent-2) 10%, transparent), transparent 72%),
+    var(--bg);
+  color: var(--text);
   font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.65;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 button, input, select, textarea {
@@ -16,14 +76,367 @@ button, input, select, textarea {
 }
 
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
-  outline: 3px solid rgb(56 189 248 / 0.55);
-  outline-offset: 2px;
+  outline: 3px solid color-mix(in srgb, var(--focus) 70%, transparent);
+  outline-offset: 3px;
 }
 
 ::selection {
-  color: #0f172a;
-  background: #bae6fd;
+  color: #04121f;
+  background: #67e8f9;
 }
+
+/* ------------------------------------------------------------------ */
+/*  کلاس‌های معنادار رابط — یک ظاهر، دو تم                             */
+/* ------------------------------------------------------------------ */
+.app-header {
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border-bottom: 2px solid var(--border);
+  backdrop-filter: blur(14px);
+}
+
+.panel {
+  border: 2px solid var(--border);
+  border-radius: 1.35rem;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.panel-soft {
+  border: 2px solid var(--border);
+  border-radius: 1.1rem;
+  background: var(--surface-2);
+}
+
+.panel-accent {
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--border));
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent),
+    var(--shadow);
+}
+
+.panel-title {
+  color: var(--text);
+  font-size: clamp(1.3rem, 1.08rem + 0.55vw, 1.75rem);
+  font-weight: 900;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+
+.section-title {
+  color: var(--text);
+  font-size: clamp(1.65rem, 1.3rem + 1vw, 2.35rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.text-muted {
+  color: var(--muted);
+}
+
+.text-subtle {
+  color: var(--subtle);
+}
+
+.field-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.45rem;
+  color: var(--muted);
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.field-input,
+.field-select {
+  width: 100%;
+  border: 2px solid var(--border);
+  border-radius: 0.9rem;
+  background: var(--surface-2);
+  color: var(--text);
+  padding: 0.72rem 0.9rem;
+  font-size: 1.08rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.field-input:hover,
+.field-select:hover {
+  border-color: var(--border-strong);
+}
+
+.field-input:focus,
+.field-select:focus {
+  border-color: var(--accent);
+  background: var(--surface);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.field-input::placeholder {
+  color: var(--subtle);
+  opacity: 0.75;
+}
+
+.color-input {
+  width: 100%;
+  height: 3.15rem;
+  border: 2px solid var(--border);
+  border-radius: 0.9rem;
+  background: var(--surface-2);
+  padding: 0.22rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.color-input:hover {
+  border-color: var(--border-strong);
+}
+.color-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.color-input::-webkit-color-swatch-wrapper { padding: 0; }
+.color-input::-webkit-color-swatch { border: 0; border-radius: 0.62rem; }
+.color-input::-moz-color-swatch { border: 0; border-radius: 0.62rem; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  border: 2px solid transparent;
+  border-radius: 0.95rem;
+  padding: 0.72rem 1.15rem;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1.25;
+  cursor: pointer;
+  transition: transform 0.12s ease, background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.btn:active { transform: scale(0.985); }
+.btn:disabled { cursor: not-allowed; opacity: 0.45; }
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 45%, var(--accent-2)));
+  color: var(--on-accent);
+  box-shadow: 0 12px 26px -16px color-mix(in srgb, var(--accent) 85%, transparent);
+}
+.btn-primary:hover:not(:disabled) { filter: brightness(1.07); }
+
+.btn-success {
+  background: linear-gradient(135deg, #059669, #16a34a);
+  color: #ffffff;
+  box-shadow: 0 12px 26px -16px rgb(5 150 105 / 0.8);
+}
+.btn-success:hover:not(:disabled) { filter: brightness(1.07); }
+
+.btn-secondary {
+  background: var(--surface-2);
+  border-color: var(--border);
+  color: var(--text);
+}
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-2));
+}
+
+.btn-danger {
+  background: color-mix(in srgb, var(--danger) 13%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+  color: var(--danger);
+}
+.btn-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 22%, var(--surface-2));
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  padding: 0.2rem 0.65rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  line-height: 1.55;
+}
+
+/* تب‌های ناوبری صفحه‌ها — هر صفحه رنگ تأکید خودش را دارد */
+.page-tab {
+  --tab: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  border: 2px solid var(--border);
+  border-radius: 1.05rem;
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.8rem 0.9rem;
+  text-align: start;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+}
+.page-tab:hover {
+  border-color: var(--tab);
+  background: color-mix(in srgb, var(--tab) 9%, var(--surface));
+  transform: translateY(-1px);
+}
+.page-tab[aria-current="page"] {
+  border-color: var(--tab);
+  background: color-mix(in srgb, var(--tab) 16%, var(--surface));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tab) 24%, transparent);
+}
+.page-tab .page-tab-num {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 0.8rem;
+  background: var(--surface-3);
+  color: var(--text);
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+.page-tab[aria-current="page"] .page-tab-num {
+  background: var(--tab);
+  color: #ffffff;
+}
+.dark .page-tab[aria-current="page"] .page-tab-num { color: #04121f; }
+
+.stat-card {
+  border: 2px solid var(--border);
+  border-radius: 1.1rem;
+  background: var(--surface);
+  padding: 0.9rem 1rem;
+}
+.stat-label {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+.stat-value {
+  margin-top: 0.15rem;
+  color: var(--text);
+  font-size: clamp(1.45rem, 1.15rem + 0.8vw, 2rem);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+.stat-hint {
+  color: var(--subtle);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.info-box {
+  border: 2px dashed color-mix(in srgb, var(--accent) 58%, var(--border));
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  color: var(--text);
+  padding: 0.85rem 1rem;
+}
+
+.empty-state {
+  border: 2px dashed var(--border-strong);
+  border-radius: 1.2rem;
+  background: var(--surface-2);
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: var(--muted);
+}
+
+.theme-toggle {
+  display: grid;
+  place-items: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  border: 2px solid var(--border);
+  border-radius: 0.9rem;
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.12s ease;
+}
+.theme-toggle:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-2));
+  transform: rotate(-6deg);
+}
+
+/* جدول ورود اطلاعات در دارک‌مود — بدون نیاز به تکرار کلاس در هر سلول */
+.dark .data-entry { background: var(--surface); border-color: var(--border); }
+.dark .data-entry .bg-white { background-color: var(--surface-2); }
+.dark .data-entry .bg-slate-50 { background-color: var(--surface-2); }
+.dark .data-entry .bg-slate-100 { background-color: var(--surface-3); }
+.dark .data-entry .bg-slate-200\/80 { background-color: var(--surface-3); }
+.dark .data-entry .bg-slate-50\/60 { background-color: color-mix(in srgb, var(--surface-2) 70%, var(--surface)); }
+.dark .data-entry .bg-sky-50 { background-color: color-mix(in srgb, var(--accent) 16%, var(--surface)); }
+.dark .data-entry .bg-sky-100 { background-color: color-mix(in srgb, var(--accent) 22%, var(--surface)); }
+.dark .data-entry .text-slate-900,
+.dark .data-entry .text-slate-800,
+.dark .data-entry .text-slate-700 { color: var(--text); }
+.dark .data-entry .text-slate-600,
+.dark .data-entry .text-slate-500 { color: var(--muted); }
+.dark .data-entry .text-slate-400 { color: var(--subtle); }
+.dark .data-entry .border-slate-200,
+.dark .data-entry .border-slate-300 { border-color: var(--border); }
+.dark .data-entry .ring-slate-300\/70 { --tw-ring-color: var(--border); }
+.dark .data-entry .hover\:bg-slate-100:hover,
+.dark .data-entry .hover\:bg-slate-100\/70:hover { background-color: color-mix(in srgb, var(--accent) 10%, var(--surface-2)); }
+.dark .data-entry .focus\:bg-white:focus { background-color: var(--surface); }
+
+/* منوی مدیریت پروژه و مودال — نگاشت رنگ‌های روشن به پالت دارک */
+.dark .project-manager .bg-white,
+.dark .project-manager-modal .bg-white { background-color: var(--surface); }
+.dark .project-manager .bg-slate-50,
+.dark .project-manager-modal .bg-slate-50 { background-color: var(--surface-2); }
+.dark .project-manager .bg-slate-100,
+.dark .project-manager-modal .bg-slate-100 { background-color: var(--surface-3); }
+.dark .project-manager .text-slate-900,
+.dark .project-manager .text-slate-800,
+.dark .project-manager .text-slate-700,
+.dark .project-manager-modal .text-slate-900,
+.dark .project-manager-modal .text-slate-800,
+.dark .project-manager-modal .text-slate-700 { color: var(--text); }
+.dark .project-manager .text-slate-600,
+.dark .project-manager .text-slate-500,
+.dark .project-manager-modal .text-slate-600,
+.dark .project-manager-modal .text-slate-500 { color: var(--muted); }
+.dark .project-manager .text-slate-400,
+.dark .project-manager-modal .text-slate-400 { color: var(--subtle); }
+.dark .project-manager .border-slate-100,
+.dark .project-manager .border-slate-200,
+.dark .project-manager-modal .border-slate-100,
+.dark .project-manager-modal .border-slate-200 { border-color: var(--border); }
+.dark .project-manager .ring-slate-200 { --tw-ring-color: var(--border); }
+.dark .project-manager .hover\:bg-slate-100:hover,
+.dark .project-manager-modal .hover\:bg-slate-100:hover,
+.dark .project-manager-modal .hover\:bg-slate-200:hover { background-color: var(--surface-3); }
+.dark .project-manager-modal .focus-within\:bg-white:focus-within { background-color: var(--surface); }
+
+/* برگهٔ کنترل روی صفحه (نسخهٔ چاپی جداگانه و همیشه روشن است) */
+.dark .control-sheet { background: var(--surface); border-color: var(--border); }
+.dark .control-sheet .bg-white { background-color: var(--surface-2); }
+.dark .control-sheet .bg-slate-50 { background-color: var(--surface-2); }
+.dark .control-sheet .text-slate-900,
+.dark .control-sheet .text-slate-800 { color: var(--text); }
+.dark .control-sheet .text-slate-600,
+.dark .control-sheet .text-slate-500 { color: var(--muted); }
+.dark .control-sheet .border-slate-200,
+.dark .control-sheet .border-slate-300 { border-color: var(--border); }
+.dark .control-sheet .ring-slate-200 { --tw-ring-color: var(--border); }
+
+/* ------------------------------------------------------------------ */
+/*  اسکرول‌بار و ورودی‌های عددی                                        */
+/* ------------------------------------------------------------------ */
 
 /* حذف اسپینر ورودی‌های عددی (در صورت استفاده از type=number) */
 input[type="number"]::-webkit-outer-spin-button,

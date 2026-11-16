@@ -182,6 +182,25 @@ export function TelegramIcon({ className = 'h-4 w-4' }: IconProps) {
   );
 }
 
+/** آیکون خورشید — حالت روشن */
+export function SunIcon({ className = 'h-5 w-5' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className={className} aria-hidden="true">
+      <circle cx="12" cy="12" r="4.2" />
+      <path strokeLinecap="round" d="M12 2.5v2.2M12 19.3v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6" />
+    </svg>
+  );
+}
+
+/** آیکون ماه — حالت تاریک */
+export function MoonIcon({ className = 'h-5 w-5' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className={className} aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M20.5 14.2A8.5 8.5 0 0 1 9.8 3.5 8.5 8.5 0 1 0 20.5 14.2Z" />
+    </svg>
+  );
+}
+
 /** آیکون دانلود / نصب — برای دکمهٔ «نصب برنامه» در هدر */
 export function DownloadIcon({ className = 'h-4 w-4' }: IconProps) {
   return (

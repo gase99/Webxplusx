@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { CutPart } from '../types/part';
+import { calculateCutDimensions, type CutPart } from '../types/part';
 
 const faNumber = new Intl.NumberFormat('fa-IR');
 
@@ -9,8 +9,26 @@ const COLOR = {
   band: '#0d9488', // teal-600 — نوار
   farsi: '#e11d48', // rose-600 — فارسی
   groove: '#d97706', // amber-600 — شیار
-  text: '#334155',
+  text: '#081120',
 };
+
+/** رنگ متن با کنتراست کافی روی ورق انتخاب‌شده */
+function readableInk(color: string): string {
+  const hex = color.replace('#', '').trim();
+  if (!/^[0-9a-f]{6}$/i.test(hex)) return COLOR.text;
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  return 0.299 * r + 0.587 * g + 0.114 * b > 148 ? '#081120' : '#ffffff';
+}
+
+interface PartPreviewProps {
+  part: CutPart | null;
+  /** ضخامت نوار برای نمایش ابعاد واقعی برش */
+  bandThickness?: number;
+  sheetColor?: string;
+  bandColor?: string;
+}
 
 /**
  * پیش‌نمایش رنگی لبه‌های قطعهٔ فعال برای کمک به ورود اطلاعات.
@@ -21,14 +39,19 @@ const COLOR = {
  * قرارداد رسم: طول (Length) افقی و عرض (Width) عمودی است؛ مقادیر ۰/۱/۲ تعداد
  * لبه‌های فعال از دو لبهٔ روبه‌رو را مشخص می‌کنند.
  */
-export default function PartPreview({ part }: { part: CutPart | null }) {
+export default function PartPreview({
+  part,
+  bandThickness = 0,
+  sheetColor = COLOR.fill,
+  bandColor = COLOR.band,
+}: PartPreviewProps) {
   const W = 360;
   const H = 240;
   const margin = 44;
 
   if (!part) {
     return (
-      <div className="flex h-[240px] items-center justify-center text-sm text-slate-400">
+      <div className="flex h-[240px] items-center justify-center text-base font-semibold text-muted">
         ردیفی انتخاب نشده است.
       </div>
     );
@@ -36,6 +59,16 @@ export default function PartPreview({ part }: { part: CutPart | null }) {
 
   const length = part.length > 0 ? part.length : 600;
   const width = part.width > 0 ? part.width : 400;
+  const cut = calculateCutDimensions(
+    { length: part.length, width: part.width, bandLength: part.bandLength, bandWidth: part.bandWidth },
+    bandThickness,
+  );
+  const ink = readableInk(sheetColor);
+  const cutLength = cut.length > 0 ? cut.length : length;
+  const cutWidth = cut.width > 0 ? cut.width : width;
+  const hasCutDiff =
+    bandThickness > 0 &&
+    (Math.abs(cutLength - part.length) > 0.001 || Math.abs(cutWidth - part.width) > 0.001);
 
   const availW = W - margin * 2;
   const availH = H - margin * 2;
@@ -93,7 +126,7 @@ export default function PartPreview({ part }: { part: CutPart | null }) {
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="mx-auto w-full max-w-[420px]" role="img" aria-label="پیش‌نمایش لبه‌های قطعه">
       {/* بدنهٔ قطعه */}
-      <rect x={x} y={y} width={rw} height={rh} rx="2" fill={COLOR.fill} stroke={COLOR.edge} strokeWidth="1.4" />
+      <rect x={x} y={y} width={rw} height={rh} rx="2" fill={sheetColor} stroke={ink} strokeWidth="1.4" />
 
       {/* شیار: خط‌چین موازی لبه، داخل قطعه — ورودی عددی ۰/۱/۲ */}
       {Number(part.grooveLength) >= 2 && (
@@ -118,21 +151,21 @@ export default function PartPreview({ part }: { part: CutPart | null }) {
       {/* نوار: خط ضخیم روی لبه — ۰/۱/۲ */}
       {Number(part.bandLength) >= 2 && (
         <>
-          <line x1={x} y1={y} x2={x + rw} y2={y} stroke={COLOR.band} strokeWidth="5" strokeLinecap="square" />
-          <line x1={x} y1={y + rh} x2={x + rw} y2={y + rh} stroke={COLOR.band} strokeWidth="5" strokeLinecap="square" />
+          <line x1={x} y1={y} x2={x + rw} y2={y} stroke={bandColor} strokeWidth="5" strokeLinecap="square" />
+          <line x1={x} y1={y + rh} x2={x + rw} y2={y + rh} stroke={bandColor} strokeWidth="5" strokeLinecap="square" />
         </>
       )}
       {Number(part.bandLength) === 1 && (
-        <line x1={x} y1={y} x2={x + rw} y2={y} stroke={COLOR.band} strokeWidth="5" strokeLinecap="square" />
+        <line x1={x} y1={y} x2={x + rw} y2={y} stroke={bandColor} strokeWidth="5" strokeLinecap="square" />
       )}
       {Number(part.bandWidth) >= 2 && (
         <>
-          <line x1={x} y1={y} x2={x} y2={y + rh} stroke={COLOR.band} strokeWidth="5" strokeLinecap="square" />
-          <line x1={x + rw} y1={y} x2={x + rw} y2={y + rh} stroke={COLOR.band} strokeWidth="5" strokeLinecap="square" />
+          <line x1={x} y1={y} x2={x} y2={y + rh} stroke={bandColor} strokeWidth="5" strokeLinecap="square" />
+          <line x1={x + rw} y1={y} x2={x + rw} y2={y + rh} stroke={bandColor} strokeWidth="5" strokeLinecap="square" />
         </>
       )}
       {Number(part.bandWidth) === 1 && (
-        <line x1={x} y1={y} x2={x} y2={y + rh} stroke={COLOR.band} strokeWidth="5" strokeLinecap="square" />
+        <line x1={x} y1={y} x2={x} y2={y + rh} stroke={bandColor} strokeWidth="5" strokeLinecap="square" />
       )}
 
       {/* فارسی در پیش‌نمایش رنگی: خط قرمز + هاشور + برچسب ۴۵° — ۰/۱/۲ */}
@@ -185,7 +218,7 @@ export default function PartPreview({ part }: { part: CutPart | null }) {
 
       {/* برچسب ابعاد */}
       {!Number(part.farsiLength) && (
-        <text x={x + rw / 2} y={y + rh + 22} textAnchor="middle" fontSize="12" fill={COLOR.text} style={{ direction: 'ltr' }}>
+        <text x={x + rw / 2} y={y + rh + 22} textAnchor="middle" fontSize="12" fill={ink} style={{ direction: 'ltr' }}>
           {part.length > 0 ? `${part.length} mm` : 'طول؟'}
         </text>
       )}
@@ -196,7 +229,7 @@ export default function PartPreview({ part }: { part: CutPart | null }) {
           textAnchor="middle"
           dominantBaseline="middle"
           fontSize="12"
-          fill={COLOR.text}
+          fill={ink}
           transform={`rotate(-90 ${x - 12} ${y + rh / 2})`}
           style={{ direction: 'ltr' }}
         >
@@ -204,13 +237,18 @@ export default function PartPreview({ part }: { part: CutPart | null }) {
         </text>
       )}
 
-      {/* نام و تعداد در مرکز قطعه */}
-      <text x={W / 2} y={H / 2 - 6} textAnchor="middle" fontSize="14" fontWeight="700" fill={COLOR.text}>
+      {/* نام، تعداد و ابعاد واقعی برش در مرکز قطعه */}
+      <text x={W / 2} y={H / 2 - 14} textAnchor="middle" fontSize="15" fontWeight="800" fill={ink}>
         {part.name.trim() || 'قطعهٔ بدون نام'}
       </text>
-      <text x={W / 2} y={H / 2 + 16} textAnchor="middle" fontSize="12" fill="#64748b">
+      <text x={W / 2} y={H / 2 + 6} textAnchor="middle" fontSize="12" fontWeight="700" fill={ink} opacity="0.82">
         {faNumber.format(length)} × {faNumber.format(width)} — تعداد: {faNumber.format(part.qty || 0)}
       </text>
+      {hasCutDiff && (
+        <text x={W / 2} y={H / 2 + 28} textAnchor="middle" fontSize="12" fontWeight="800" fill={bandColor}>
+          ابعاد برش پس از کسر نوار: {faNumber.format(cutLength)} × {faNumber.format(cutWidth)} mm
+        </text>
+      )}
     </svg>
   );
 }

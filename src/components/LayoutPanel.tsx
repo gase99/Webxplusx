@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { calculateLayout, type LayoutResult } from '../algorithm';
-import { isValidPart, type CutPart } from '../types/part';
+import { calculateCutDimensions, isValidPart, type CutPart } from '../types/part';
 import {
+  BAND_COLOR_PRESETS,
+  SHEET_COLOR_PRESETS,
   computeLayoutSignature,
   type LayoutSettings,
   type LayoutState,
@@ -33,10 +35,12 @@ const STOCK_PRESETS: { label: string; length: number; width: number }[] = [
   { label: '۲۸۰۰ × ۲۰۷۰', length: 2800, width: 2070 },
 ];
 
+export type LayoutPage = 'dashboard' | 'drawing' | 'outputs';
+
 interface LayoutPanelProps {
-  page: 'setup' | 'analysis' | 'labels' | 'exports';
+  page: LayoutPage;
   parts: CutPart[];
-  /** تنظیمات ورق/تیغه — کنترل‌شده از App تا بخشی از پروژه باشد (فاز ۵) */
+  /** تنظیمات ورق/تیغه — کنترل‌شده از App تا بخشی از پروژه باشد */
   settings: LayoutSettings;
   onSettingsChange: (settings: LayoutSettings) => void;
   /** نتیجهٔ چیدمان + اسنپ‌شات قطعاتش — کنترل‌شده از App تا در پروژه ذخیره شود */
@@ -45,8 +49,9 @@ interface LayoutPanelProps {
 }
 
 /**
- * پنل فاز ۲ و ۳ — تنظیمات صفحهٔ خام و تیغه + اجرای موتور چیدمان گیلوتینی
- * و نمایش بلافاصلهٔ نقشهٔ برش (CuttingMap) زیر خلاصهٔ نتیجه.
+ * پنل صفحه‌های «داشبورد/تنظیمات»، «نقشه و لیبل‌ها» و «خروجی‌ها».
+ * منطق محاسبه یک‌جا نگه داشته شده است تا هر سه صفحه همیشه یک نتیجهٔ
+ * مشترک را نشان دهند و قانون کسر ضخامت نوار/استریپ فقط در یک نقطه باشد.
  */
 export default function LayoutPanel({
   page,
@@ -56,18 +61,20 @@ export default function LayoutPanel({
   layoutState,
   onLayoutStateChange,
 }: LayoutPanelProps) {
-  const { stockLength, stockWidth, kerf, allowRotation } = settings;
+  const { stockLength, stockWidth, kerf, allowRotation, bandThickness } = settings;
   const setStockLength = (v: number) => onSettingsChange({ ...settings, stockLength: v });
   const setStockWidth = (v: number) => onSettingsChange({ ...settings, stockWidth: v });
   const setKerf = (v: number) => onSettingsChange({ ...settings, kerf: v });
   const setBandThickness = (v: number) => onSettingsChange({ ...settings, bandThickness: v });
   const setAllowRotation = (v: boolean) => onSettingsChange({ ...settings, allowRotation: v });
+  const setSheetColor = (v: string) => onSettingsChange({ ...settings, sheetColor: v });
+  const setBandColor = (v: string) => onSettingsChange({ ...settings, bandColor: v });
 
   const result = layoutState?.result ?? null;
   const resultParts = layoutState?.partsSnapshot ?? [];
   const resultRef = useRef<HTMLDivElement | null>(null);
   const isFirstResultRef = useRef(true);
-  /** حالت سند چاپی فعال در دسکتاپ: نقشه (همراه فهرست قطعات) یا لیبل (فاز ۴) */
+  /** حالت سند چاپی فعال در دسکتاپ: نقشه (همراه فهرست قطعات) یا لیبل */
   const [printMode, setPrintMode] = useState<'map' | 'labels' | null>(null);
   /** درخواست ساخت PDF — جایگزین چاپ روی موبایل/APK/PWA که window.print ندارد */
   const [pdfRequest, setPdfRequest] = useState<'map' | 'labels' | null>(null);
@@ -98,32 +105,34 @@ export default function LayoutPanel({
       return;
     }
     if (!(stockLength > 0) || !(stockWidth > 0)) {
-      setError('ابعاد صفحهٔ خام باید بزرگ‌تر از صفر باشد.');
+      setError('ابعاد ورق خام باید بزرگ‌تر از صفر باشد.');
       return;
     }
     setError(null);
 
-    const invalidBandParts = validParts.filter(
-      (part) => part.length - Number(part.bandWidth) * settings.bandThickness <= 0 ||
-        part.width - Number(part.bandLength) * settings.bandThickness <= 0,
-    );
+    // قانون کسر نوار/استریپ در هر سه صفحه یکسان است: ابعاد برش از تابع مشترک می‌آید.
+    const invalidBandParts = validParts.filter((part) => {
+      const cut = calculateCutDimensions(part, bandThickness);
+      return !(cut.length > 0) || !(cut.width > 0);
+    });
     if (invalidBandParts.length > 0) {
-      setError('پس از کسر ضخامت نوار، ابعاد یک یا چند قطعه صفر یا منفی می‌شود؛ ضخامت نوار یا تعداد لبه‌ها را بررسی کنید.');
+      setError(
+        'پس از کسر ضخامت نوار/استریپ، ابعاد یک یا چند قطعه صفر یا منفی می‌شود؛ ضخامت نوار یا تعداد لبه‌ها را بررسی کنید.',
+      );
       return;
     }
 
     const layout = calculateLayout(
       parts,
       { length: stockLength, width: stockWidth },
-      { kerf, bandThickness: settings.bandThickness, allowRotation },
+      {
+        kerf,
+        bandThickness,
+        allowRotation,
+        sheetColor: settings.sheetColor,
+        bandColor: settings.bandColor,
+      },
     );
-
-    // خروجی فاز ۲ برای بررسی و دیباگ: چاپ در کنسول مرورگر + نگه‌داری برای نمایش JSON
-    console.log('[A-Cut 2Dpro] Layout Result (Guillotine):', layout);
-    console.table(layout.placements);
-    if (layout.unplaced.length > 0) {
-      console.warn('[A-Cut 2Dpro] Unplaced parts:', layout.unplaced);
-    }
 
     onLayoutStateChange({
       result: layout,
@@ -140,8 +149,10 @@ export default function LayoutPanel({
       isFirstResultRef.current = false;
       return;
     }
-    if (result) resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, [result]);
+    if (result && page === 'drawing') {
+      resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [result, page]);
 
   // وقتی حالت چاپ فعال شد (فقط دسکتاپ): سند در Portal رندر شده؛ بعد از دو فریم چاپ را باز کن
   useEffect(() => {
@@ -226,406 +237,618 @@ export default function LayoutPanel({
     }
   };
 
-  const numberInputClass =
-    'w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-center text-sm font-bold tabular-nums outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-200';
+  const effectiveExample = calculateCutDimensions({ length: 400, width: 400, bandLength: 1, bandWidth: 0 }, bandThickness);
 
   return (
     <>
-    <section className="rounded-2xl bg-white px-4 py-3.5 shadow-sm ring-1 ring-slate-300/70">
-      <div className="flex flex-wrap items-center gap-2">
-        <h2 className="text-sm font-extrabold text-slate-800">
-          {page === 'setup' ? '⚙️ مرحلهٔ ۱ — تنظیم ورق، تیغه و نوار' : page === 'analysis' ? '📐 مرحلهٔ ۲ — تحلیل و نمایش نقشه' : page === 'labels' ? '🏷️ مرحلهٔ ۳ — لیبل‌های قطعات' : '📤 مرحلهٔ ۴ — خروجی چاپ، PDF و DXF'}
-          {page === 'analysis' && <span className="ms-2 text-xs font-medium text-slate-400" dir="ltr">Guillotine Nesting</span>}
-        </h2>
-        <span className="ms-auto hidden text-xs text-slate-400 sm:block">
-          بعد از محاسبه، نقشهٔ برش (SVG) با علائم نوار/فارسی/شیار بلافاصله زیر نتیجه رسم می‌شود.
-        </span>
-      </div>
-
-      {/* صفحهٔ ۱: تنظیم ورق، تیغه و نوار */}
-      {page === 'setup' && <div className="mt-3 flex flex-wrap items-end gap-3">
-        <label className="block w-32">
-          <span className="mb-1 block text-xs font-semibold text-slate-500">
-            طول صفحهٔ خام <span className="font-normal text-slate-400">(mm)</span>
-          </span>
-          <input
-            type="text"
-            inputMode="decimal"
-            dir="ltr"
-            value={stockLength ? String(stockLength) : ''}
-            placeholder="3660"
-            onChange={(e) => setStockLength(parseMm(e.target.value))}
-            onFocus={(e) => e.target.select()}
-            className={numberInputClass}
-          />
-        </label>
-
-        <span className="pb-2.5 font-bold text-slate-300">×</span>
-
-        <label className="block w-32">
-          <span className="mb-1 block text-xs font-semibold text-slate-500">
-            عرض صفحهٔ خام <span className="font-normal text-slate-400">(mm)</span>
-          </span>
-          <input
-            type="text"
-            inputMode="decimal"
-            dir="ltr"
-            value={stockWidth ? String(stockWidth) : ''}
-            placeholder="1830"
-            onChange={(e) => setStockWidth(parseMm(e.target.value))}
-            onFocus={(e) => e.target.select()}
-            className={numberInputClass}
-          />
-        </label>
-
-        <label className="block w-28">
-          <span className="mb-1 block text-xs font-semibold text-slate-500">
-            ضخامت تیغه <span className="font-normal text-slate-400" dir="ltr">Kerf (mm)</span>
-          </span>
-          <input
-            type="text"
-            inputMode="decimal"
-            dir="ltr"
-            value={String(kerf)}
-            placeholder="4"
-            onChange={(e) => setKerf(parseMm(e.target.value))}
-            onFocus={(e) => e.target.select()}
-            className={numberInputClass}
-          />
-        </label>
-
-        <label className="block w-28">
-          <span className="mb-1 block text-xs font-semibold text-slate-500">
-            ضخامت نوار <span className="font-normal text-slate-400">(mm)</span>
-          </span>
-          <input
-            type="text"
-            inputMode="decimal"
-            dir="ltr"
-            value={String(settings.bandThickness)}
-            placeholder="0"
-            onChange={(e) => setBandThickness(parseMm(e.target.value))}
-            onFocus={(e) => e.target.select()}
-            className={numberInputClass}
-          />
-          <span className="mt-1 block text-[10px] leading-4 text-slate-400">به‌ازای هر لبهٔ نوارخورده از بعد عمود کسر می‌شود</span>
-        </label>
-
-        <label
-          className="flex cursor-pointer items-center gap-2 rounded-lg bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-700 ring-1 ring-slate-200"
-          title="در فازهای بعدی با قفل جهت رگهٔ چوب (گرین)، این گزینه به‌ازای هر قطعه جدا می‌شود"
-        >
-          <input
-            type="checkbox"
-            checked={allowRotation}
-            onChange={(e) => setAllowRotation(e.target.checked)}
-            className="h-[18px] w-[18px] accent-sky-700"
-          />
-          چرخش ۹۰° قطعات مجاز است
-        </label>
-
-        <div className="flex items-center gap-1.5 pb-0.5">
-          <span className="text-[11px] text-slate-400">اندازه‌های رایج:</span>
-          {STOCK_PRESETS.map((preset) => {
-            const active = stockLength === preset.length && stockWidth === preset.width;
-            return (
-              <button
-                key={preset.label}
-                type="button"
-                onClick={() =>
-                  // یک به‌روزرسانی واحد؛ دو setter جداگانه روی شیء کنترل‌شده هم را بازنویسی می‌کنند
-                  onSettingsChange({ ...settings, stockLength: preset.length, stockWidth: preset.width })
-                }
-                className={`rounded-md px-2 py-1.5 text-xs font-bold tabular-nums ring-1 transition ${
-                  active
-                    ? 'bg-sky-700 text-white ring-sky-700'
-                    : 'bg-white text-slate-600 ring-slate-300 hover:bg-slate-100'
-                }`}
-              >
-                {preset.label}
-              </button>
-            );
-          })}
-        </div>
-
-        <button
-          type="button"
-          onClick={handleCalculate}
-          disabled={!canCalculate}
-          className="ms-auto inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-emerald-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-slate-300"
-        >
-          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
-            <path d="M7 4.5v15c0 .8.9 1.3 1.6.9l12-7.5c.6-.4.6-1.4 0-1.8l-12-7.5c-.7-.4-1.6.1-1.6.9Z" />
-          </svg>
-          محاسبهٔ چیدمان
-          <span className="text-[11px] font-semibold opacity-80" dir="ltr">
-            Calculate Layout
-          </span>
-        </button>
-      </div>}
-
-      {page === 'setup' && validParts.length === 0 && (
-        <p className="mt-2 text-xs text-slate-400">ابتدا دست‌کم یک قطعه با طول، عرض و تعداد کامل وارد کنید.</p>
-      )}
-
-      {page === 'analysis' && (
-        <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl bg-sky-50 p-3 ring-1 ring-sky-200">
-          <div className="flex-1 text-sm text-sky-950"><strong>مرحلهٔ ۲: تحلیل و نقشه</strong><span className="ms-2 text-xs text-sky-700">با ابعاد ورق، تیغه و کسر خودکار نوار تنظیم‌شده</span></div>
-          <button type="button" onClick={handleCalculate} disabled={!canCalculate} className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-black text-white shadow-sm hover:bg-emerald-500 disabled:bg-slate-300">محاسبه / به‌روزرسانی نقشه</button>
-        </div>
-      )}
-
-      {error && <p className="mt-3 rounded-lg bg-rose-50 px-3 py-2 text-sm font-medium text-rose-800 ring-1 ring-rose-200">⚠ {error}</p>}
-
-      {page !== 'setup' && !result && (
-        <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center">
-          <p className="font-extrabold text-slate-700">هنوز چیدمانی محاسبه نشده است</p>
-          <p className="mt-1 text-sm text-slate-500">ابتدا در مرحلهٔ ۱ ابعاد ورق و قطعات را وارد کنید، سپس در مرحلهٔ ۲ محاسبه را اجرا کنید.</p>
-        </div>
-      )}
-
-      {/* نتیجهٔ محاسبه */}
-      {result && page !== 'setup' && (
-        <div ref={resultRef} className="mt-4 scroll-mt-4 border-t border-dashed border-slate-200 pt-3.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-extrabold text-slate-800">نتیجهٔ چیدمان</h3>
-            {isStale ? (
-              <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-800 ring-1 ring-amber-300">
-                ⚠ داده‌ها تغییر کرده‌اند — این نتیجه قدیمی است، دوباره محاسبه کنید
-              </span>
-            ) : (
-              <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-800 ring-1 ring-emerald-300">
-                ✓ به‌روز
-              </span>
-            )}
-            {page === 'analysis' && <span className="ms-auto flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setShowJson((v) => !v)}
-                className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 ring-1 ring-slate-300 transition hover:bg-slate-200"
-              >
-                {showJson ? 'پنهان‌کردن JSON' : 'مشاهدهٔ JSON خروجی'}
-              </button>
-              <button
-                type="button"
-                onClick={handleCopyJson}
-                className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 ring-1 ring-slate-300 transition hover:bg-slate-200"
-              >
-                {copied ? '✓ کپی شد' : 'کپی JSON'}
-              </button>
-            </span>}
+      {page === 'dashboard' && (
+        <section className="panel panel-accent p-4 sm:p-6" aria-labelledby="settings-title">
+          <div className="flex flex-wrap items-start gap-3">
+            <div>
+              <span className="badge mb-2">صفحهٔ ۱ · داشبورد</span>
+              <h2 id="settings-title" className="panel-title">
+                تنظیمات ورق، تیغه و نوار/استریپ
+              </h2>
+              <p className="mt-1 max-w-3xl text-[0.98rem] font-semibold text-muted">
+                ابعاد و رنگ ورق، اندازهٔ تیغه و ضخامت نوار/استریپ را اینجا تنظیم کنید. همین مقادیر
+                مبنای محاسبهٔ قطعات و خروجی‌های صفحه‌های بعد هستند.
+              </p>
+            </div>
+            <span className="badge ms-auto">مرحلهٔ ۱ از ۳</span>
           </div>
 
-          {/* شاخص‌های تحلیل: صفحات مصرفی + درصد پرت */}
-          {page === 'analysis' && <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
-            <ResultCard
-              title="صفحات خام مصرفی"
-              value={`${faNumber.format(result.summary.sheetCount)} صفحه`}
-              hint={`هر صفحه ${faNumber.format(result.stock.length)} × ${faNumber.format(result.stock.width)}`}
-            />
-            <ResultCard
-              title="درصد پرت (Waste)"
-              value={`${faDecimal.format(result.summary.wastePercentage)}٪`}
-              hint="شامل خوراک تیغه (Kerf)"
-              accent="text-rose-700"
-            />
-            <ResultCard
-              title="بهره‌وری ورق"
-              value={`${faDecimal.format(result.summary.utilizationPercentage)}٪`}
-              hint={`${faDecimal.format(result.summary.usedArea / 1_000_000)} از ${faDecimal.format(result.summary.totalSheetArea / 1_000_000)} مترمربع`}
-              accent="text-emerald-700"
-            />
-            <ResultCard
-              title="قطعات چیده‌شده"
-              value={`${faNumber.format(result.summary.placedCount)} از ${faNumber.format(result.summary.totalParts)}`}
-              hint={
-                result.summary.unplacedCount > 0
-                  ? `${faNumber.format(result.summary.unplacedCount)} قطعه جا نشد!`
-                  : 'همهٔ قطعات چیده شدند'
-              }
-              accent={result.summary.unplacedCount > 0 ? 'text-rose-700' : 'text-slate-800'}
-            />
-          </div>}
-
-          {/* ریز هر صفحه (متنی — نقشهٔ گرافیکی در فاز ۳) */}
-          {page === 'analysis' && result.sheets.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {result.sheets.map((sheet) => (
-                <span
-                  key={sheet.sheetIndex}
-                  className="rounded-lg bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-600 ring-1 ring-slate-200"
-                >
-                  صفحهٔ {faNumber.format(sheet.sheetIndex + 1)}:{' '}
-                  <span className="text-slate-800">
-                    بهره‌وری {faDecimal.format(sheet.utilizationPercentage)}٪
-                  </span>{' '}
-                  · پرت {faDecimal.format(sheet.wastePercentage)}٪ ·{' '}
-                  {faNumber.format(sheet.placements.length)} قطعه
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* فاز ۴: نوار ابزار خروجی‌ها (نقشه + فهرست قطعات / DXF / لیبل) */}
-          {page === 'exports' && result.sheets.length > 0 && (
-            <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-sm">
-              <span className="text-xs font-extrabold text-slate-700">خروجی‌ها</span>
-              <button
-                type="button"
-                onClick={() => requestDocument('map')}
-                disabled={isStale || pdfBusy}
-                title={
-                  isStale
-                    ? 'ابتدا دوباره محاسبه کنید'
-                    : prefersPdf
-                      ? 'ساخت فایل PDF از نقشهٔ سیاه‌وسفید + فهرست گروه‌بندی‌شدهٔ قطعات و فاکتور متریال (هر ورق در یک صفحهٔ A4 جدا و فهرست قطعات در انتها) — برای ذخیره، اشتراک‌گذاری و چاپ'
-                      : 'چاپ نقشهٔ سیاه‌وسفید (هر ورق بزرگ روی یک برگهٔ A4 جدا) و فهرست گروه‌بندی‌شدهٔ قطعات + فاکتور متریال در برگهٔ آخر (قابل ذخیره به‌صورت PDF)'
-                }
-                className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-slate-800 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {pdfRequest === 'map'
-                  ? '⏳ در حال ساخت PDF…'
-                  : prefersPdf
-                    ? '📄 دانلود PDF نقشه و لیست قطعات'
-                    : '🖨️ چاپ نقشه و لیست قطعات'}
-              </button>
-              <button
-                type="button"
-                onClick={handleDownloadDxf}
-                disabled={isStale}
-                title={isStale ? 'ابتدا دوباره محاسبه کنید' : 'فایل DXF (R12) با لایه‌های CUT / GROOVE / FARSI_45 برای CNC'}
-                className="rounded-lg bg-sky-600 px-3 py-1.5 text-xs font-bold text-white transition hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                ⬇️ دانلود DXF برای CNC
-              </button>
-              <button
-                type="button"
-                onClick={() => requestDocument('labels')}
-                disabled={isStale || pdfBusy}
-                title={
-                  isStale
-                    ? 'ابتدا دوباره محاسبه کنید'
-                    : prefersPdf
-                      ? 'ساخت فایل PDF برچسب قطعات — شبکهٔ ۳×۵ روی A4 با اندازهٔ واقعی، برای ذخیره/اشتراک‌گذاری و چاپ'
-                      : 'چاپ برچسب قطعات — شبکهٔ ۳×۵ روی A4'
-                }
-                className="rounded-lg bg-white px-3 py-1.5 text-xs font-bold text-slate-800 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {pdfRequest === 'labels'
-                  ? '⏳ در حال ساخت PDF…'
-                  : prefersPdf
-                    ? '📄 دانلود PDF لیبل‌ها'
-                    : '🏷️ چاپ لیبل‌ها'}
-              </button>
-              <span className="ms-auto hidden text-[11px] text-slate-400 lg:block">
-                در DXF هر ورق کنار بعدی قرار می‌گیرد؛ کد هر قطعه (مثل S1-03) با لیبل چاپی‌اش یکی است.
+          <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <label className="block">
+              <span className="field-label">
+                طول ورق خام
+                <span className="text-subtle text-xs font-bold" dir="ltr">mm</span>
               </span>
-            </div>
-          )}
+              <input
+                type="text"
+                inputMode="decimal"
+                dir="ltr"
+                value={stockLength ? String(stockLength) : ''}
+                placeholder="3660"
+                onChange={(e) => setStockLength(parseMm(e.target.value))}
+                onFocus={(e) => e.target.select()}
+                className="field-input"
+              />
+            </label>
 
-          {/* در موبایل/نسخهٔ نصب‌شده چاپ مستقیم نیست؛ مسیر PDF برای کاربر توضیح داده شود */}
-          {page === 'exports' && result.sheets.length > 0 && prefersPdf && (
-            <p className="mt-1.5 text-[11px] leading-5 text-slate-400">
-              📄 چاپ مستقیم روی گوشی پشتیبانی نمی‌شود؛ دکمه‌های بالا فایل <b>PDF (A4)</b> می‌سازند
-              تا آن را ذخیره یا اشتراک‌گذاری کنید و از همان‌جا چاپ بگیرید.
+            <label className="block">
+              <span className="field-label">
+                عرض ورق خام
+                <span className="text-subtle text-xs font-bold" dir="ltr">mm</span>
+              </span>
+              <input
+                type="text"
+                inputMode="decimal"
+                dir="ltr"
+                value={stockWidth ? String(stockWidth) : ''}
+                placeholder="1830"
+                onChange={(e) => setStockWidth(parseMm(e.target.value))}
+                onFocus={(e) => e.target.select()}
+                className="field-input"
+              />
+            </label>
+
+            <label className="block">
+              <span className="field-label">
+                اندازهٔ تیغه (Blade)
+                <span className="text-subtle text-xs font-bold" dir="ltr">mm</span>
+              </span>
+              <input
+                type="text"
+                inputMode="decimal"
+                dir="ltr"
+                value={String(kerf)}
+                placeholder="4"
+                onChange={(e) => setKerf(parseMm(e.target.value))}
+                onFocus={(e) => e.target.select()}
+                className="field-input"
+              />
+            </label>
+
+            <label className="block">
+              <span className="field-label">
+                ضخامت نوار/استریپ
+                <span className="text-subtle text-xs font-bold" dir="ltr">mm</span>
+              </span>
+              <input
+                type="text"
+                inputMode="decimal"
+                dir="ltr"
+                value={String(bandThickness)}
+                placeholder="0"
+                onChange={(e) => setBandThickness(parseMm(e.target.value))}
+                onFocus={(e) => e.target.select()}
+                className="field-input"
+              />
+            </label>
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <ColorField
+              label="رنگ ورق"
+              hint="پس‌زمینهٔ ورق در نقشه و پیش‌نمایش"
+              value={settings.sheetColor}
+              presets={SHEET_COLOR_PRESETS}
+              onChange={setSheetColor}
+            />
+            <ColorField
+              label="رنگ نوار/استریپ"
+              hint="رنگ لبه‌های نوارخورده در نقشه و لیبل"
+              value={settings.bandColor}
+              presets={BAND_COLOR_PRESETS}
+              onChange={setBandColor}
+            />
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <span className="text-sm font-extrabold text-muted">اندازه‌های رایج ورق:</span>
+            {STOCK_PRESETS.map((preset) => {
+              const active = stockLength === preset.length && stockWidth === preset.width;
+              return (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() =>
+                    onSettingsChange({
+                      ...settings,
+                      stockLength: preset.length,
+                      stockWidth: preset.width,
+                    })
+                  }
+                  className={`rounded-xl border-2 px-3 py-1.5 text-sm font-black tabular-nums transition ${
+                    active
+                      ? 'border-cyan-600 bg-cyan-600 text-white dark:border-cyan-300 dark:bg-cyan-400 dark:text-slate-950'
+                      : 'border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)] hover:border-cyan-500'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-xl border-2 border-[var(--border)] bg-[var(--surface-2)] px-4 py-3">
+            <input
+              type="checkbox"
+              checked={allowRotation}
+              onChange={(e) => setAllowRotation(e.target.checked)}
+              className="h-6 w-6 accent-cyan-600"
+            />
+            <span>
+              <span className="block text-base font-black text-[var(--text)]">
+                چرخش ۹۰ درجهٔ قطعات مجاز است
+              </span>
+              <span className="block text-sm font-semibold text-muted">
+                اگر رگه/گرین چوب مهم است، این گزینه را خاموش کنید تا همهٔ قطعات هم‌جهت بمانند.
+              </span>
+            </span>
+          </label>
+
+          <div className="info-box mt-4">
+            <p className="text-base font-black">قانون کسر خودکار ضخامت نوار/استریپ</p>
+            <p className="mt-1 text-sm font-semibold leading-7">
+              ضخامت نوار از بعد عمود بر لبهٔ نوارخورده کم می‌شود. مثال با تنظیمات فعلی:
+              قطعهٔ ۴۰۰ میلی‌متری با <b>یک لبهٔ نوار</b> و ضخامت{' '}
+              <b dir="ltr">{faNumber.format(bandThickness)} mm</b> برای برش{' '}
+              <b dir="ltr">{faNumber.format(Math.max(0, effectiveExample.width))} mm</b> در نظر گرفته
+              می‌شود (۴۰۰ − {faNumber.format(bandThickness)}). همین قاعده در نقشه، لیبل، DXF و
+              محاسبهٔ پرت اعمال می‌شود.
+            </p>
+          </div>
+
+          {error && (
+            <p className="mt-4 rounded-xl border-2 border-rose-400/60 bg-rose-500/10 px-4 py-3 text-base font-bold text-rose-700 dark:text-rose-200">
+              ⚠ {error}
             </p>
           )}
-          {pdfError && (
-            <p className="mt-2 rounded-lg bg-rose-50 px-3 py-2 text-xs font-medium text-rose-800 ring-1 ring-rose-200">
-              ⚠ {pdfError}
+
+          {validParts.length === 0 && (
+            <p className="mt-3 text-sm font-semibold text-muted">
+              ابتدا دست‌کم یک قطعه با طول، عرض و تعداد کامل در بخش «ورود قطعات» پایین همین صفحه
+              ثبت کنید.
             </p>
           )}
 
-          {/* فاز ۳: نقشهٔ برش SVG روی همین خروجی placements/sheets — هاشور ضایعات = هاشور مورب پرت */}
-          {page === 'analysis' && result.sheets.length > 0 && (
-            <CuttingMap sheets={result.sheets} stock={result.stock} parts={resultParts} />
-          )}
-
-          {/* برگه کنترل روی‌صفحه — همان جدول در چاپ هم زیر نقشه می‌آید (گروه‌بندی‌شده) */}
-          {page === 'analysis' && result.sheets.length > 0 && (
-            <ControlSheet result={result} parts={resultParts} />
-          )}
-
-          {/* پیش‌نمایش روی‌صفحهٔ لیبل‌ها (همان چیزی که چاپ می‌شود) */}
-          {page === 'labels' && result.placements.length > 0 && (
-            <div className="mt-4">
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                <h3 className="text-sm font-extrabold text-slate-800">
-                  🏷️ لیبل قطعات
-                  <span className="ms-2 text-xs font-medium text-slate-400">
-                    شبکهٔ ۳ × ۵ در هر صفحهٔ A4 — {faNumber.format(result.placements.length)} لیبل
-                  </span>
-                </h3>
-              </div>
-              <div className="table-scroll overflow-x-auto rounded-2xl bg-slate-200/70 p-3">
-                <LabelSheet placements={result.placements} parts={resultParts} />
-              </div>
-            </div>
-          )}
-
-          {/* قطعات جانشده */}
-          {page === 'analysis' && result.unplaced.length > 0 && (
-            <div className="mt-3 rounded-lg bg-rose-50 px-3 py-2.5 text-sm text-rose-900 ring-1 ring-rose-200">
-              <p className="font-bold">
-                ⚠ این قطعات حتی در صفحهٔ خالی هم جا نمی‌شوند (در هیچ‌کدام از دو جهت):
-              </p>
-              <ul className="mt-1 list-inside list-disc space-y-0.5 text-[13px]">
-                {result.unplaced.map((p) => (
-                  <li key={`${p.id}-${p.instanceIndex}`}>
-                    «{p.name?.trim() || 'بدون نام'}» نمونهٔ {faNumber.format(p.instanceIndex)} —{' '}
-                    <span dir="ltr" className="tabular-nums">
-                      {p.length} × {p.width} mm
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {page === 'analysis' && <p className="mt-2.5 text-[11px] text-slate-400">
-            نتیجهٔ کامل (مختصات x/y، شمارهٔ صفحه، چرخش و ابعاد نهایی هر قطعه) در کنسول مرورگر (F12 ← Console) هم چاپ شده است.
-          </p>}
-
-          {page === 'analysis' && showJson && (
-            <pre
-              dir="ltr"
-              className="mt-2 max-h-[420px] overflow-auto rounded-xl bg-slate-900 p-4 text-left font-mono text-[11px] leading-5 text-emerald-200"
+          <div className="mt-5 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={handleCalculate}
+              disabled={!canCalculate}
+              className="btn btn-success px-6 py-3 text-lg"
             >
-              {JSON.stringify(result, null, 2)}
-            </pre>
-          )}
-        </div>
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true">
+                <path d="M7 4.5v15c0 .8.9 1.3 1.6.9l12-7.5c.6-.4.6-1.4 0-1.8l-12-7.5c-.7-.4-1.6.1-1.6.9Z" />
+              </svg>
+              محاسبه و به‌روزرسانی چیدمان
+            </button>
+            <span className="text-sm font-semibold text-muted">
+              نتیجه در صفحهٔ «نقشه و لیبل‌ها» و «خروجی‌ها» نمایش داده می‌شود.
+            </span>
+          </div>
+        </section>
       )}
-    </section>
 
-    {/*
-      سند خروجی (فاز ۴): از طریق Portal روی body رندر می‌شود و روی صفحه
-      دیده نمی‌شود — در دسکتاپ برای چاپ (printMode) و در موبایل برای ضبط
-      و تبدیل به PDF ‏(pdfRequest).
-    */}
-    {(printMode || pdfRequest) &&
-      result &&
-      createPortal(
-        <div className="print-portal" ref={printPortalRef}>
-          {(printMode ?? pdfRequest) === 'map' ? (
-            <PrintMapDocument result={result} parts={resultParts} />
-          ) : (
-            <div className="print-doc-labels">
-              <LabelSheet placements={result.placements} parts={resultParts} />
+      {page === 'drawing' && (
+        <section className="space-y-5" aria-labelledby="drawing-title">
+          <div className="panel p-4 sm:p-5">
+            <div className="flex flex-wrap items-center gap-3">
+              <div>
+                <span className="badge mb-2">صفحهٔ ۲ · نقشه</span>
+                <h2 id="drawing-title" className="panel-title">
+                  نقشهٔ برش، لیبل‌ها و راهنمای علائم
+                </h2>
+                <p className="mt-1 text-sm font-semibold text-muted">
+                  چیدمان گیلوتینی روی ورق‌های خام، همراه با لیبل‌های کارگاهی قطعات.
+                </p>
+              </div>
+              <div className="ms-auto flex flex-wrap items-center gap-2">
+                {result && (
+                  <span
+                    className={`badge ${
+                      isStale
+                        ? 'border-amber-400/70 bg-amber-500/15 text-amber-800 dark:text-amber-200'
+                        : 'border-emerald-400/70 bg-emerald-500/15 text-emerald-800 dark:text-emerald-200'
+                    }`}
+                  >
+                    {isStale ? '⚠ نتیجه قدیمی است' : '✓ نتیجه به‌روز'}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={handleCalculate}
+                  disabled={!canCalculate}
+                  className="btn btn-success"
+                >
+                  محاسبه / به‌روزرسانی نقشه
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <p className="mt-3 rounded-xl border-2 border-rose-400/60 bg-rose-500/10 px-4 py-3 text-base font-bold text-rose-700 dark:text-rose-200">
+                ⚠ {error}
+              </p>
+            )}
+
+            {!result && (
+              <div className="empty-state mt-4">
+                <p className="text-xl font-black text-[var(--text)]">هنوز چیدمانی محاسبه نشده است</p>
+                <p className="mt-2 text-base font-semibold">
+                  ابتدا در صفحهٔ «داشبورد و تنظیمات» ابعاد ورق و قطعات را وارد کنید، سپس دکمهٔ
+                  «محاسبه» را بزنید.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {result && (
+            <div ref={resultRef} className="scroll-mt-4 space-y-5">
+              {isStale && (
+                <p className="rounded-xl border-2 border-amber-400/70 bg-amber-500/12 px-4 py-3 text-base font-bold text-amber-800 dark:text-amber-200">
+                  ⚠ داده‌ها بعد از محاسبه تغییر کرده‌اند؛ نقشه و لیبل‌های زیر مربوط به نتیجهٔ قبلی
+                  هستند. برای خروجی درست، دوباره «محاسبه / به‌روزرسانی نقشه» را بزنید.
+                </p>
+              )}
+
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <ResultCard
+                  title="ورق‌های مصرفی"
+                  value={`${faNumber.format(result.summary.sheetCount)} صفحه`}
+                  hint={`هر ورق ${faNumber.format(result.stock.length)} × ${faNumber.format(result.stock.width)}`}
+                />
+                <ResultCard
+                  title="درصد پرت"
+                  value={`${faDecimal.format(result.summary.wastePercentage)}٪`}
+                  hint="شامل خوراک تیغه (Kerf)"
+                  accent="text-rose-700 dark:text-rose-300"
+                />
+                <ResultCard
+                  title="بهره‌وری ورق"
+                  value={`${faDecimal.format(result.summary.utilizationPercentage)}٪`}
+                  hint={`${faDecimal.format(result.summary.usedArea / 1_000_000)} از ${faDecimal.format(result.summary.totalSheetArea / 1_000_000)} مترمربع`}
+                  accent="text-emerald-700 dark:text-emerald-300"
+                />
+                <ResultCard
+                  title="قطعات چیده‌شده"
+                  value={`${faNumber.format(result.summary.placedCount)} از ${faNumber.format(result.summary.totalParts)}`}
+                  hint={
+                    result.summary.unplacedCount > 0
+                      ? `${faNumber.format(result.summary.unplacedCount)} قطعه جا نشد!`
+                      : 'همهٔ قطعات چیده شدند'
+                  }
+                  accent={result.summary.unplacedCount > 0 ? 'text-rose-700 dark:text-rose-300' : 'text-[var(--text)]'}
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {result.sheets.map((sheet) => (
+                  <span key={sheet.sheetIndex} className="badge text-sm">
+                    صفحهٔ {faNumber.format(sheet.sheetIndex + 1)}: بهره‌وری{' '}
+                    <b className="text-[var(--text)]">{faDecimal.format(sheet.utilizationPercentage)}٪</b>
+                    {' · '}پرت {faDecimal.format(sheet.wastePercentage)}٪
+                  </span>
+                ))}
+              </div>
+
+              {result.sheets.length > 0 && (
+                <CuttingMap
+                  sheets={result.sheets}
+                  stock={result.stock}
+                  parts={resultParts}
+                  sheetColor={settings.sheetColor}
+                  bandColor={settings.bandColor}
+                />
+              )}
+
+              {result.placements.length > 0 && (
+                <section className="panel p-4 sm:p-5" aria-labelledby="labels-title">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div>
+                      <span className="badge mb-2">لیبل‌ها</span>
+                      <h3 id="labels-title" className="panel-title">
+                        🏷️ لیبل قطعات برای کارگاه
+                      </h3>
+                    </div>
+                    <span className="badge ms-auto text-sm">
+                      {faNumber.format(result.placements.length)} لیبل · شبکهٔ ۳ × ۵ روی A4
+                    </span>
+                  </div>
+                  <div className="table-scroll mt-4 overflow-x-auto rounded-2xl border-2 border-[var(--border)] bg-slate-300/70 p-3 dark:bg-slate-950/60">
+                    <LabelSheet
+                      placements={result.placements}
+                      parts={resultParts}
+                      bandColor={settings.bandColor}
+                    />
+                  </div>
+                </section>
+              )}
+
+              {result.unplaced.length > 0 && (
+                <div className="rounded-xl border-2 border-rose-400/70 bg-rose-500/10 px-4 py-3 text-sm font-semibold text-rose-800 dark:text-rose-200">
+                  <p className="text-base font-black">
+                    ⚠ این قطعات حتی در ورق خالی هم جا نمی‌شوند (در هیچ‌کدام از دو جهت):
+                  </p>
+                  <ul className="mt-1 list-inside list-disc space-y-0.5">
+                    {result.unplaced.map((p) => (
+                      <li key={`${p.id}-${p.instanceIndex}`}>
+                        «{p.name?.trim() || 'بدون نام'}» نمونهٔ {faNumber.format(p.instanceIndex)} —{' '}
+                        <span dir="ltr" className="tabular-nums">
+                          {p.length} × {p.width} mm
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <p className="text-sm font-semibold leading-7 text-muted">
+                مبدأ نقشه (۰،۰) گوشهٔ شروع ورق است. فاصله‌های باریک بین قطعات همان خوراک تیغه
+                (Kerf) است. علامت هر عملیات دقیقاً روی همان لبه کشیده شده است: نوار رنگی، کانال
+                دو خطی = شیار و خط دندانه‌ای = فارسی ۴۵°. برای دیدن جزئیات، روی هر قطعه مکث کنید.
+              </p>
             </div>
           )}
-        </div>,
-        document.body,
+        </section>
       )}
+
+      {page === 'outputs' && (
+        <section className="space-y-5" aria-labelledby="outputs-title">
+          <div className="panel p-4 sm:p-5">
+            <div className="flex flex-wrap items-center gap-3">
+              <div>
+                <span className="badge mb-2">صفحهٔ ۳ · خروجی‌ها</span>
+                <h2 id="outputs-title" className="panel-title">
+                  نتایج، چاپ، PDF و DXF
+                </h2>
+                <p className="mt-1 text-sm font-semibold text-muted">
+                  خلاصهٔ نتیجه به‌همراه خروجی چاپی/PDF نقشه و لیبل‌ها و فایل DXF برای CNC.
+                </p>
+              </div>
+              <span className="badge ms-auto">مرحلهٔ ۳ از ۳</span>
+            </div>
+
+            {error && (
+              <p className="mt-3 rounded-xl border-2 border-rose-400/60 bg-rose-500/10 px-4 py-3 text-base font-bold text-rose-700 dark:text-rose-200">
+                ⚠ {error}
+              </p>
+            )}
+
+            {!result && (
+              <div className="empty-state mt-4">
+                <p className="text-xl font-black text-[var(--text)]">هنوز خروجی‌ای آماده نیست</p>
+                <p className="mt-2 text-base font-semibold">
+                  ابتدا در صفحهٔ «داشبورد و تنظیمات» قطعات را وارد و «محاسبه» را اجرا کنید.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {result && (
+            <>
+              {isStale && (
+                <p className="rounded-xl border-2 border-amber-400/70 bg-amber-500/12 px-4 py-3 text-base font-bold text-amber-800 dark:text-amber-200">
+                  ⚠ نتیجهٔ فعلی قدیمی است. تا دوباره محاسبه نکنید، خروجی‌ها قفل می‌مانند تا نقشهٔ
+                  اشتباه به کارگاه نرود.
+                </p>
+              )}
+
+              <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <ResultCard
+                  title="ورق‌های مصرفی"
+                  value={`${faNumber.format(result.summary.sheetCount)} صفحه`}
+                  hint={`${result.stock.length} × ${result.stock.width} mm`}
+                />
+                <ResultCard
+                  title="درصد پرت"
+                  value={`${faDecimal.format(result.summary.wastePercentage)}٪`}
+                  hint="شامل خوراک تیغه"
+                  accent="text-rose-700 dark:text-rose-300"
+                />
+                <ResultCard
+                  title="بهره‌وری"
+                  value={`${faDecimal.format(result.summary.utilizationPercentage)}٪`}
+                  hint="نسبت مساحت قطعات به ورق"
+                  accent="text-emerald-700 dark:text-emerald-300"
+                />
+                <ResultCard
+                  title="قطعات"
+                  value={`${faNumber.format(result.summary.placedCount)} از ${faNumber.format(result.summary.totalParts)}`}
+                  hint={result.summary.unplacedCount > 0 ? `${faNumber.format(result.summary.unplacedCount)} قطعه جا نشد` : 'همه چیده شدند'}
+                  accent={result.summary.unplacedCount > 0 ? 'text-rose-700 dark:text-rose-300' : 'text-[var(--text)]'}
+                />
+              </div>
+
+              <div className="panel p-4 sm:p-5">
+                <h3 className="panel-title">📤 دکمه‌های خروجی</h3>
+                <div className="mt-3 grid gap-3 md:grid-cols-3">
+                  <button
+                    type="button"
+                    onClick={() => requestDocument('map')}
+                    disabled={isStale || pdfBusy}
+                    title={
+                      isStale
+                        ? 'ابتدا دوباره محاسبه کنید'
+                        : prefersPdf
+                          ? 'ساخت PDF از نقشهٔ سیاه‌وسفید + فهرست گروه‌بندی‌شدهٔ قطعات و فاکتور متریال'
+                          : 'چاپ نقشهٔ سیاه‌وسفید و فهرست گروه‌بندی‌شدهٔ قطعات + فاکتور متریال'
+                    }
+                    className="btn btn-primary py-4 text-base"
+                  >
+                    {pdfRequest === 'map'
+                      ? '⏳ در حال ساخت PDF…'
+                      : prefersPdf
+                        ? '📄 دانلود PDF نقشه و لیست قطعات'
+                        : '🖨️ چاپ نقشه و لیست قطعات'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownloadDxf}
+                    disabled={isStale}
+                    title={isStale ? 'ابتدا دوباره محاسبه کنید' : 'فایل DXF (R12) با لایه‌های CUT / GROOVE / FARSI_45 برای CNC'}
+                    className="btn btn-secondary py-4 text-base"
+                  >
+                    ⬇️ دانلود DXF برای CNC
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => requestDocument('labels')}
+                    disabled={isStale || pdfBusy}
+                    title={
+                      isStale
+                        ? 'ابتدا دوباره محاسبه کنید'
+                        : prefersPdf
+                          ? 'ساخت PDF برچسب قطعات — شبکهٔ ۳×۵ روی A4'
+                          : 'چاپ برچسب قطعات — شبکهٔ ۳×۵ روی A4'
+                    }
+                    className="btn btn-secondary py-4 text-base"
+                  >
+                    {pdfRequest === 'labels'
+                      ? '⏳ در حال ساخت PDF…'
+                      : prefersPdf
+                        ? '📄 دانلود PDF لیبل‌ها'
+                        : '🏷️ چاپ لیبل‌ها'}
+                  </button>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowJson((v) => !v)}
+                    className="btn btn-secondary"
+                  >
+                    {showJson ? 'پنهان‌کردن JSON' : 'مشاهدهٔ JSON خروجی'}
+                  </button>
+                  <button type="button" onClick={handleCopyJson} className="btn btn-secondary">
+                    {copied ? '✓ کپی شد' : 'کپی JSON'}
+                  </button>
+                  <span className="text-sm font-semibold text-muted">
+                    در DXF هر ورق کنار بعدی قرار می‌گیرد؛ کد هر قطعه (مثل S1-03) با لیبل چاپی‌اش یکی است.
+                  </span>
+                </div>
+
+                {prefersPdf && (
+                  <p className="mt-3 text-sm font-semibold leading-6 text-muted">
+                    📄 چاپ مستقیم روی گوشی پشتیبانی نمی‌شود؛ دکمه‌های بالا فایل <b>PDF (A4)</b> می‌سازند
+                    تا آن را ذخیره یا اشتراک‌گذاری کنید و از همان‌جا چاپ بگیرید.
+                  </p>
+                )}
+
+                {pdfError && (
+                  <p className="mt-3 rounded-xl border-2 border-rose-400/60 bg-rose-500/10 px-4 py-3 text-sm font-bold text-rose-700 dark:text-rose-200">
+                    ⚠ {pdfError}
+                  </p>
+                )}
+              </div>
+
+              {result.sheets.length > 0 && (
+                <div className="panel p-4 sm:p-5">
+                  <h3 className="panel-title">📋 برگهٔ کنترل تولید و فاکتور متریال</h3>
+                  <ControlSheet result={result} parts={resultParts} />
+                </div>
+              )}
+
+              {showJson && (
+                <pre
+                  dir="ltr"
+                  className="max-h-[480px] overflow-auto rounded-2xl border-2 border-[var(--border)] bg-slate-950 p-4 text-left font-mono text-[12px] leading-6 text-emerald-200"
+                >
+                  {JSON.stringify(result, null, 2)}
+                </pre>
+              )}
+            </>
+          )}
+        </section>
+      )}
+
+      {/*
+        سند خروجی: از طریق Portal روی body رندر می‌شود و روی صفحه دیده نمی‌شود —
+        در دسکتاپ برای چاپ (printMode) و در موبایل برای ضبط و تبدیل به PDF.
+      */}
+      {(printMode || pdfRequest) &&
+        result &&
+        createPortal(
+          <div className="print-portal" ref={printPortalRef}>
+            {(printMode ?? pdfRequest) === 'map' ? (
+              <PrintMapDocument result={result} parts={resultParts} />
+            ) : (
+              <div className="print-doc-labels">
+                <LabelSheet
+                  placements={result.placements}
+                  parts={resultParts}
+                  bandColor={settings.bandColor}
+                />
+              </div>
+            )}
+          </div>,
+          document.body,
+        )}
     </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  اجزای کوچک                                                         */
+/* ------------------------------------------------------------------ */
+
+function ColorField({
+  label,
+  hint,
+  value,
+  presets,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  value: string;
+  presets: string[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="panel-soft p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="field-label mb-0">{label}</span>
+        <span dir="ltr" className="badge font-mono text-xs">
+          {value}
+        </span>
+      </div>
+      <p className="mb-2 text-xs font-semibold text-subtle">{hint}</p>
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label={label}
+          className="color-input max-w-24"
+        />
+        <div className="flex flex-wrap gap-1.5">
+          {presets.map((color) => (
+            <button
+              key={color}
+              type="button"
+              onClick={() => onChange(color)}
+              aria-label={`${label}: ${color}`}
+              title={color}
+              className={`h-8 w-8 rounded-lg border-2 transition hover:scale-110 ${
+                value.toLowerCase() === color.toLowerCase()
+                  ? 'border-[var(--text)] ring-2 ring-[var(--accent)]'
+                  : 'border-[var(--border)]'
+              }`}
+              style={{ backgroundColor: color }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
 /**
  * سند چاپی نقشهٔ برش: سربرگ خلاصه + نقشه‌ها + فهرست گروه‌بندی‌شدهٔ قطعات
  * و فاکتور متریال (بدون کنترل‌های تعاملی).
- * صفحه‌بندی تفکیک‌شده: هر ورق خام یک صفحهٔ کامل A4 و فهرست قطعات در
- * صفحهٔ(های) جدای انتهایی (در CSS چاپ و exportPdf.ts موبایل یکسان است).
  */
 function PrintMapDocument({ result, parts }: { result: LayoutResult; parts: CutPart[] }) {
   const today = new Date().toLocaleDateString('fa-IR');
@@ -659,7 +882,6 @@ function PrintMapDocument({ result, parts }: { result: LayoutResult; parts: CutP
         </ul>
       </header>
       <CuttingMap sheets={result.sheets} stock={result.stock} parts={parts} forPrint />
-      {/* صفحهٔ جدا در انتها: فهرست گروه‌بندی‌شدهٔ قطعات + فاکتور متریال */}
       <PrintPartsList result={result} parts={parts} />
     </div>
   );
@@ -669,7 +891,7 @@ function ResultCard({
   title,
   value,
   hint,
-  accent = 'text-slate-800',
+  accent = 'text-[var(--text)]',
 }: {
   title: string;
   value: string;
@@ -677,10 +899,10 @@ function ResultCard({
   accent?: string;
 }) {
   return (
-    <div className="rounded-xl bg-slate-50 px-3.5 py-3 ring-1 ring-slate-200">
-      <p className="text-[11px] font-semibold text-slate-500">{title}</p>
-      <p className={`mt-0.5 text-lg font-black tabular-nums ${accent}`}>{value}</p>
-      <p className="mt-0.5 text-[11px] text-slate-400">{hint}</p>
+    <div className="stat-card">
+      <p className="stat-label">{title}</p>
+      <p className={`stat-value ${accent}`}>{value}</p>
+      <p className="stat-hint">{hint}</p>
     </div>
   );
 }

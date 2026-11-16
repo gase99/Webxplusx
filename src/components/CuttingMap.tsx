@@ -33,9 +33,22 @@ const faDecimal = new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 1 });
 
 const INK = '#000000';
 const PAPER = '#ffffff';
+const DEFAULT_SHEET_COLOR = '#f4e7c8';
+const DEFAULT_BAND_COLOR = '#0d9488';
 
 const FONT_FAMILY = 'Vazirmatn, Tahoma, Arial, sans-serif';
 const charCount = (str: string): number => [...str].length;
+
+/** انتخاب رنگ متن/خط با کنتراست کافی روی رنگ ورق انتخاب‌شده */
+function readableInk(color: string): string {
+  const hex = color.replace('#', '').trim();
+  if (!/^[0-9a-f]{6}$/i.test(hex)) return INK;
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+  return luminance > 148 ? INK : PAPER;
+}
 
 /* ------------------------------------------------------------------ */
 /*  هندسهٔ علائم لبه                                                   */
@@ -152,10 +165,16 @@ function EdgeMarks({
   edge,
   frame,
   m,
+  ink,
+  paper,
+  band,
 }: {
   edge: EdgeLayout;
   frame: EdgeFrame;
   m: MarkMetrics;
+  ink: string;
+  paper: string;
+  band: string;
 }) {
   const { ops } = edge;
   const f = frame;
@@ -165,7 +184,7 @@ function EdgeMarks({
       {ops.map((op) => {
         const [d0, d1] = m.zone(ops, op);
         if (op === 'band') {
-          return <rect key={op} {...bandRect(f, 0, f.len, d0, d1)} fill={INK} />;
+          return <rect key={op} {...bandRect(f, 0, f.len, d0, d1)} fill={band} />;
         }
         if (op === 'groove') {
           const r = bandRect(f, inset, f.len - inset, d0, d1);
@@ -173,13 +192,13 @@ function EdgeMarks({
           const [cx1, cy1] = at(f, f.len - inset, (d0 + d1) / 2);
           return (
             <g key={op}>
-              <rect {...r} fill={PAPER} stroke={INK} strokeWidth={m.stroke * 1.3} />
+              <rect {...r} fill={paper} stroke={ink} strokeWidth={m.stroke * 1.3} />
               <line
                 x1={cx0}
                 y1={cy0}
                 x2={cx1}
                 y2={cy1}
-                stroke={INK}
+                stroke={ink}
                 strokeWidth={m.stroke * 1.6}
                 strokeDasharray={`${m.u * 1.1} ${m.u * 0.7}`}
               />
@@ -204,7 +223,7 @@ function EdgeMarks({
             key={op}
             points={pts.join(' ')}
             fill="none"
-            stroke={INK}
+            stroke={ink}
             strokeWidth={m.stroke * 1.2}
             strokeLinejoin="miter"
           />
@@ -252,7 +271,19 @@ function tagLayout(
   return { cx, cy, halfW };
 }
 
-function EdgeTag({ edge, tag, m }: { edge: EdgeLayout; tag: TagLayout; m: MarkMetrics }) {
+function EdgeTag({
+  edge,
+  tag,
+  m,
+  ink,
+  paper,
+}: {
+  edge: EdgeLayout;
+  tag: TagLayout;
+  m: MarkMetrics;
+  ink: string;
+  paper: string;
+}) {
   const r = m.tagR;
   const letters = edge.ops.map((op) => OP_LETTER[op]);
   const { cx, cy, halfW } = tag;
@@ -265,8 +296,8 @@ function EdgeTag({ edge, tag, m }: { edge: EdgeLayout; tag: TagLayout; m: MarkMe
         width={halfW * 2}
         height={r * 2}
         rx={r}
-        fill={PAPER}
-        stroke={INK}
+        fill={paper}
+        stroke={ink}
         strokeWidth={Math.max(m.stroke, r * 0.12)}
       />
       <text
@@ -276,7 +307,7 @@ function EdgeTag({ edge, tag, m }: { edge: EdgeLayout; tag: TagLayout; m: MarkMe
         dominantBaseline="central"
         fontSize={fontSize}
         fontWeight="900"
-        fill={INK}
+        fill={ink}
         style={{ fontFamily: FONT_FAMILY, direction: 'rtl' }}
       >
         {letters.join(' ')}
@@ -327,9 +358,12 @@ interface PlacedPartProps {
   source?: CutPart;
   /** ضریب مقیاس: چند میلی‌متر به‌ازای هر «پیکسل اسمی» در نمایش ۱۰۰۰ پیکسلی */
   scale: number;
+  ink: string;
+  paper: string;
+  band: string;
 }
 
-function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
+function PlacedPart({ placement, source, scale: s, ink, paper, band }: PlacedPartProps) {
   const { x, y, width: w, height: h, isRotated } = placement;
   const cx = x + w / 2;
   const cy = y + h / 2;
@@ -417,7 +451,7 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
           dominantBaseline="central"
           fontSize={nameFit.size}
           fontWeight="900"
-          fill={INK}
+          fill={ink}
           pointerEvents="none"
           style={{ fontFamily: FONT_FAMILY, direction: 'rtl' }}
         >
@@ -434,7 +468,7 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
           dominantBaseline="middle"
           fontSize={Math.min(30, Math.min(w, h) / 1.6)}
           fontWeight="800"
-          fill={INK}
+          fill={ink}
           pointerEvents="none"
           style={{ fontFamily: FONT_FAMILY }}
         >
@@ -456,7 +490,7 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
         dominantBaseline="central"
         fontSize={d.fontSize}
         fontWeight="800"
-        fill={INK}
+        fill={ink}
         pointerEvents="none"
         style={{ fontFamily: FONT_FAMILY }}
       >
@@ -480,17 +514,17 @@ function PlacedPart({ placement, source, scale: s }: PlacedPartProps) {
         {`${name} — نمونهٔ ${placement.instanceIndex} — ${mapDims} mm روی صفحهٔ ${placement.sheetIndex + 1} در (${placement.x}, ${placement.y})${isRotated ? ' — چرخیده ۹۰°' : ''}${flagsSummary ? ` — ${flagsSummary}` : ''}`}
       </title>
 
-      <rect x={x} y={y} width={w} height={h} fill={PAPER} stroke={INK} strokeWidth={1.8 * s} />
+      <rect x={x} y={y} width={w} height={h} fill={paper} stroke={ink} strokeWidth={1.8 * s} />
 
       {marked.map(({ edge, frame }) => (
-        <EdgeMarks key={edge.side} edge={edge} frame={frame} m={m} />
+        <EdgeMarks key={edge.side} edge={edge} frame={frame} m={m} ink={ink} paper={paper} band={band} />
       ))}
 
       {/* خط دور دوباره روی علائم تا مرز قطعه همیشه واضح بماند */}
-      <rect x={x} y={y} width={w} height={h} fill="none" stroke={INK} strokeWidth={1.8 * s} />
+      <rect x={x} y={y} width={w} height={h} fill="none" stroke={ink} strokeWidth={1.8 * s} />
 
       {marked.map(({ edge, tag }) =>
-        tag ? <EdgeTag key={edge.side} edge={edge} tag={tag} m={m} /> : null,
+        tag ? <EdgeTag key={edge.side} edge={edge} tag={tag} m={m} ink={ink} paper={paper} /> : null,
       )}
 
       {renderDims()}
@@ -510,9 +544,19 @@ interface CuttingMapProps {
   parts: CutPart[];
   /** حالت سند چاپی: بدون کنترل زوم و یادداشت تعاملی، زوم ثابت ۱۰۰٪ */
   forPrint?: boolean;
+  /** رنگ ورق و نوار انتخاب‌شده در داشبورد (فقط نمایش روی صفحه، چاپ همیشه سیاه‌وسفید) */
+  sheetColor?: string;
+  bandColor?: string;
 }
 
-export default function CuttingMap({ sheets, stock, parts, forPrint = false }: CuttingMapProps) {
+export default function CuttingMap({
+  sheets,
+  stock,
+  parts,
+  forPrint = false,
+  sheetColor = DEFAULT_SHEET_COLOR,
+  bandColor = DEFAULT_BAND_COLOR,
+}: CuttingMapProps) {
   const [zoom, setZoom] = useState(100);
   const effectiveZoom = forPrint ? 100 : zoom;
   const patternId = useId().replace(/[^a-zA-Z0-9]/g, '');
@@ -523,6 +567,11 @@ export default function CuttingMap({ sheets, stock, parts, forPrint = false }: C
   const scale = Math.max(stock.length, stock.width) / 1000;
   // حاشیهٔ حداقلی دور ورق فقط برای بریده‌نشدن خط دور ورق (نوشته‌ها داخل قطعه‌اند)
   const pad = Math.ceil(3 * scale);
+
+  // نمایش روی صفحه از رنگ‌های انتخابی استفاده می‌کند؛ سند چاپی همیشه سیاه‌وسفید است.
+  const paper = forPrint ? PAPER : sheetColor;
+  const ink = forPrint ? INK : readableInk(sheetColor);
+  const band = forPrint ? INK : bandColor;
 
   if (sheets.length === 0) return null;
 
@@ -657,13 +706,13 @@ export default function CuttingMap({ sheets, stock, parts, forPrint = false }: C
                       height={16 * scale}
                       patternTransform="rotate(45)"
                     >
-                      <rect width={16 * scale} height={16 * scale} fill={PAPER} />
-                      <line x1={0} y1={0} x2={0} y2={16 * scale} stroke={INK} strokeWidth={1.2 * scale} />
+                      <rect width={16 * scale} height={16 * scale} fill={paper} />
+                      <line x1={0} y1={0} x2={0} y2={16 * scale} stroke={ink} strokeWidth={1.2 * scale} />
                     </pattern>
                   </defs>
 
                   {/* بدنهٔ ورق خام: پس‌زمینه‌اش همان پرت/باقی‌مانده است */}
-                  <rect x={0} y={0} width={stock.length} height={stock.width} fill={`url(#${patternId}-waste)`} stroke={INK} strokeWidth={2.4 * scale} />
+                  <rect x={0} y={0} width={stock.length} height={stock.width} fill={`url(#${patternId}-waste)`} stroke={ink} strokeWidth={2.4 * scale} />
 
                   {sheet.placements.map((placement) => (
                     <PlacedPart
@@ -671,6 +720,9 @@ export default function CuttingMap({ sheets, stock, parts, forPrint = false }: C
                       placement={placement}
                       source={partsById.get(placement.id)}
                       scale={scale}
+                      ink={ink}
+                      paper={paper}
+                      band={band}
                     />
                   ))}
                 </svg>
