@@ -1,9 +1,6 @@
 name: Build Android APK
 
-# ساخت APK دیباگ بدون نیاز به Android Studio روی سیستم شما:
-#   • دستی: GitHub → Actions → Build Android APK → Run workflow
-#   • خودکار: هر تغییری در فایل‌های مرتبط با نسخهٔ بومی روی main،
-#     و همچنین پوش تگ نسخه (v*)
+# ساخت APK دیباگ؛ هر تغییر مؤثر در برنامهٔ وب/بومی روی main نیز APK تازه می‌سازد.
 on:
   workflow_dispatch:
   push:
@@ -13,13 +10,14 @@ on:
     paths:
       - '.github/workflows/build-android.yml'
       - 'android/**'
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
       - 'capacitor.config.ts'
-      # صفحهٔ خطای آفلاین داخل APK بسته‌بندی می‌شود؛ تغییرش یعنی APK تازه
-      - 'public/offline.html'
       - 'package.json'
       - 'package-lock.json'
       - 'vite.config.ts'
-      - 'scripts/android-apk.mjs'
+      - 'scripts/**'
 
 permissions:
   contents: read
@@ -43,9 +41,6 @@ jobs:
           distribution: temurin
           java-version: '21'
 
-      # پکیج قدیمی `tools` از مخازن گوگل حذف شده است و مقدار پیش‌فرض این اکشن
-      # همان `tools platform-tools` است؛ به همین دلیل فقط platform-tools را
-      # صریحاً نصب می‌کنیم تا مرحله هرگز روی پکیج منسوخ شکست نخورد.
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
@@ -53,9 +48,6 @@ jobs:
           accept-android-sdk-licenses: true
           log-accepted-android-sdk-licenses: false
 
-      # نصب قطعی قطعات موردنیاز پروژه (compileSdk/targetSdk = 36، AGP 8.13).
-      # اگر پکیجی در این نسخه در دسترس نباشد، Gradle خودش هنگام بیلد آن را
-      # دانلود می‌کند؛ بنابراین این مرحله هرگز باعث شکست ورک‌فلو نمی‌شود.
       - name: Install Android SDK platform and build-tools
         run: |
           set +e
