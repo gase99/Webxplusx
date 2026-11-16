@@ -122,6 +122,30 @@ export function isValidPart(p: CutPart): boolean {
   return p.length > 0 && p.width > 0 && p.qty > 0;
 }
 
+/**
+ * ابعاد واقعی برش پس از کسر ضخامت نوار/استریپ.
+ * -------------------------------------------------
+ * ضخامت نوار از بعد عمود بر لبهٔ نوارخورده کم می‌شود؛ مثلاً اگر عرض قطعه
+ * ۴۰۰ میلی‌متر باشد و یک لبهٔ موازی طول نوار شود، عرض برش ۴۰۰ منهای
+ * ضخامت نوار (مثلاً ۲ میلی‌متر) یعنی ۳۹۸ میلی‌متر خواهد بود.
+ * این تابع تنها مرجع این محاسبه است تا جدول، پیش‌نمایش، موتور چیدمان و
+ * خروجی‌ها همه یک عدد را نشان دهند.
+ */
+export function calculateCutDimensions(
+  part: Pick<CutPart, 'length' | 'width'> & {
+    bandLength?: EdgeCount | number;
+    bandWidth?: EdgeCount | number;
+  },
+  bandThickness: number,
+): { length: number; width: number } {
+  const thickness = Number.isFinite(bandThickness) ? Math.max(0, bandThickness) : 0;
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+  return {
+    length: round2(part.length - normalizeEdgeCount(part.bandWidth) * thickness),
+    width: round2(part.width - normalizeEdgeCount(part.bandLength) * thickness),
+  };
+}
+
 export interface MaterialSummary {
   /** مجموع طول نوار لبه بر حسب متر */
   bandMeters: number;
