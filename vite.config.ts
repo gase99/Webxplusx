@@ -31,8 +31,8 @@ export default defineConfig(({ mode }) => {
       registerType: 'prompt',
       includeAssets: ['icons/icon-192.png', 'icons/icon-512.png'],
       manifest: {
-        name: 'A-Cut 2Dpro | بهینه‌سازی برش دوبعدی ورق',
-        short_name: 'A-Cut 2Dpro',
+        name: 'داشبورد برش ورق — بهینه‌سازی برش دوبعدی',
+        short_name: 'برش ورق',
         description:
           'ورود اطلاعات قطعات، بهینه‌سازی چیدمان روی ورق خام، نقشهٔ برش، خروجی DXF و لیبل — قابل نصب و کارآفلاین',
         lang: 'fa',

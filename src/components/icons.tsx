@@ -209,3 +209,57 @@ export function DownloadIcon({ className = 'h-4 w-4' }: IconProps) {
     </svg>
   );
 }
+
+/** سه‌نقطهٔ عمودی — منوی یکپارچهٔ تنظیمات و صفحه‌ها در هدر */
+export function DotsIcon({ className = 'h-5 w-5' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden="true">
+      <circle cx="12" cy="5" r="2.1" />
+      <circle cx="12" cy="12" r="2.1" />
+      <circle cx="12" cy="19" r="2.1" />
+    </svg>
+  );
+}
+
+/** پالت رنگ — شیت «ظاهر و نوار بالا» */
+export function PaletteIcon({ className = 'h-5 w-5' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className} aria-hidden="true">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 3a9 9 0 1 0 0 18c1.4 0 2-.9 2-2 0-1.6-1.6-1.7-1.6-3.2 0-1.1.9-2 2.1-2H17a4 4 0 0 0 4-4c0-3.9-4-6.8-9-6.8Z"
+      />
+      <circle cx="7.5" cy="10" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="10.5" cy="6.8" r="1.1" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="7.5" r="1.1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+/** اطلاعات — راهنمای صفحه‌ها */
+export function InfoIcon({ className = 'h-5 w-5' }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className} aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <path strokeLinecap="round" d="M12 11v5.5" />
+      <circle cx="12" cy="7.8" r="1.1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+/** پیکان چپ/راست برای جابه‌جایی صفحه */
+export function ArrowIcon({ className = 'h-4 w-4', dir = 'start' }: IconProps & { dir?: 'start' | 'end' }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      className={`${className} ${dir === 'start' ? '' : 'rotate-180'}`}
+      aria-hidden="true"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M19 12H5m0 0 6-6m-6 6 6 6" />
+    </svg>
+  );
+}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { calculateLayout, type LayoutResult } from '../algorithm';
 import { calculateCutDimensions, isValidPart, type CutPart } from '../types/part';
@@ -245,7 +245,7 @@ export default function LayoutPanel({
         <section className="panel panel-accent p-4 sm:p-6" aria-labelledby="settings-title">
           <div className="flex flex-wrap items-start gap-3">
             <div>
-              <span className="badge mb-2">صفحهٔ ۱ · داشبورد</span>
+              <span className="page-chip" style={{ '--chip': '#0ea5e9' } as CSSProperties}>صفحهٔ ۱ · داشبورد</span>
               <h2 id="settings-title" className="panel-title">
                 تنظیمات ورق، تیغه و نوار/استریپ
               </h2>
@@ -254,7 +254,7 @@ export default function LayoutPanel({
                 مبنای محاسبهٔ قطعات و خروجی‌های صفحه‌های بعد هستند.
               </p>
             </div>
-            <span className="badge ms-auto">مرحلهٔ ۱ از ۳</span>
+            <span className="badge ms-auto">مرحلهٔ ۱ از ۴</span>
           </div>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -418,7 +418,7 @@ export default function LayoutPanel({
               type="button"
               onClick={handleCalculate}
               disabled={!canCalculate}
-              className="btn btn-success px-6 py-3 text-lg"
+              className="btn btn-success px-6 py-3 text-lg accent-ring"
             >
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true">
                 <path d="M7 4.5v15c0 .8.9 1.3 1.6.9l12-7.5c.6-.4.6-1.4 0-1.8l-12-7.5c-.7-.4-1.6.1-1.6.9Z" />
@@ -437,7 +437,7 @@ export default function LayoutPanel({
           <div className="panel p-4 sm:p-5">
             <div className="flex flex-wrap items-center gap-3">
               <div>
-                <span className="badge mb-2">صفحهٔ ۲ · نقشه</span>
+                <span className="page-chip" style={{ '--chip': '#8b5cf6' } as CSSProperties}>صفحهٔ ۲ · نقشه</span>
                 <h2 id="drawing-title" className="panel-title">
                   نقشهٔ برش، لیبل‌ها و راهنمای علائم
                 </h2>
@@ -461,7 +461,7 @@ export default function LayoutPanel({
                   type="button"
                   onClick={handleCalculate}
                   disabled={!canCalculate}
-                  className="btn btn-success"
+                  className="btn btn-success accent-ring"
                 >
                   محاسبه / به‌روزرسانی نقشه
                 </button>
@@ -600,7 +600,7 @@ export default function LayoutPanel({
           <div className="panel p-4 sm:p-5">
             <div className="flex flex-wrap items-center gap-3">
               <div>
-                <span className="badge mb-2">صفحهٔ ۳ · خروجی‌ها</span>
+                <span className="page-chip" style={{ '--chip': '#10b981' } as CSSProperties}>صفحهٔ ۳ · خروجی‌ها</span>
                 <h2 id="outputs-title" className="panel-title">
                   نتایج، چاپ، PDF و DXF
                 </h2>
@@ -608,7 +608,7 @@ export default function LayoutPanel({
                   خلاصهٔ نتیجه به‌همراه خروجی چاپی/PDF نقشه و لیبل‌ها و فایل DXF برای CNC.
                 </p>
               </div>
-              <span className="badge ms-auto">مرحلهٔ ۳ از ۳</span>
+              <span className="badge ms-auto">مرحلهٔ ۳ از ۴</span>
             </div>
 
             {error && (
@@ -676,7 +676,7 @@ export default function LayoutPanel({
                           ? 'ساخت PDF از نقشهٔ سیاه‌وسفید + فهرست گروه‌بندی‌شدهٔ قطعات و فاکتور متریال'
                           : 'چاپ نقشهٔ سیاه‌وسفید و فهرست گروه‌بندی‌شدهٔ قطعات + فاکتور متریال'
                     }
-                    className="btn btn-primary py-4 text-base"
+                    className="btn btn-primary py-4 text-base accent-ring"
                   >
                     {pdfRequest === 'map'
                       ? '⏳ در حال ساخت PDF…'
@@ -689,7 +689,7 @@ export default function LayoutPanel({
                     onClick={handleDownloadDxf}
                     disabled={isStale}
                     title={isStale ? 'ابتدا دوباره محاسبه کنید' : 'فایل DXF (R12) با لایه‌های CUT / GROOVE / FARSI_45 برای CNC'}
-                    className="btn btn-secondary py-4 text-base"
+                    className="btn btn-secondary py-4 text-base accent-ring"
                   >
                     ⬇️ دانلود DXF برای CNC
                   </button>
@@ -704,7 +704,7 @@ export default function LayoutPanel({
                           ? 'ساخت PDF برچسب قطعات — شبکهٔ ۳×۵ روی A4'
                           : 'چاپ برچسب قطعات — شبکهٔ ۳×۵ روی A4'
                     }
-                    className="btn btn-secondary py-4 text-base"
+                    className="btn btn-secondary py-4 text-base accent-ring"
                   >
                     {pdfRequest === 'labels'
                       ? '⏳ در حال ساخت PDF…'

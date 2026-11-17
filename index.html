@@ -6,11 +6,11 @@
     <meta name="theme-color" content="#0e7490" />
     <meta
       name="description"
-      content="A-Cut 2Dpro — داشبورد تنظیمات ورق، ورود قطعات، نقشهٔ برش و لیبل‌ها، خروجی DXF/PDF. رابط چهارصفحه‌ای با تم روشن و تاریک، نصب‌پذیر و آفلاین."
+      content="بهینه‌سازی برش دوبعدی ورق — داشبورد تنظیمات و تم، نقشهٔ برش و لیبل‌ها، خروجی DXF/PDF. رابط چهارصفحه‌ای مستقل، نصب‌پذیر و آفلاین."
     />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
-    <title>A-Cut 2Dpro | داشبورد، نقشه و خروجی برش</title>
+    <title>داشبورد برش ورق | نقشه، لیبل و خروجی</title>
     <script>
       // اعمال تم قبل از اولین رنگ‌آمیزی صفحه (جلوگیری از فلش سفید در دارک‌مود)
       (function () {
@@ -19,6 +19,18 @@
           var dark = saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
           document.documentElement.classList.toggle('dark', dark);
           document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+
+          // تنظیمات ظاهری (رنگ تأکید، نوار بالا، گوشه‌ها، انیمیشن) قبل از رندر
+          var prefs = localStorage.getItem('acut_ui_prefs');
+          if (prefs) {
+            var p = JSON.parse(prefs) || {};
+            var root = document.documentElement;
+            if (p.accent) root.dataset.accent = p.accent;
+            if (p.header) root.dataset.header = p.header;
+            if (p.corners) root.dataset.corners = p.corners;
+            if (p.motion) root.dataset.motion = p.motion;
+            if (typeof p.ring === 'boolean') root.dataset.ring = p.ring ? 'on' : 'off';
+          }
         } catch (_) {}
       })();
     </script>

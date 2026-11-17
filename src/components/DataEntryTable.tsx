@@ -265,7 +265,7 @@ export default function DataEntryTable({
         <button
           type="button"
           onClick={() => insertRowAfter(activeId ?? rows[rows.length - 1]?.id ?? null)}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-sky-700 px-3 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-sky-600 active:scale-[0.98]"
+          className="accent-ring inline-flex items-center gap-1.5 rounded-lg bg-sky-700 px-3 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-sky-600 active:scale-[0.98]"
         >
           <PlusIcon />
           افزودن ردیف

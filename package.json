@@ -2,7 +2,7 @@
   "name": "a-cut-2dpro",
   "private": true,
   "version": "0.2.0",
-  "description": "A-Cut 2Dpro — بهینه‌سازی برش دوبعدی ورق (چوب، MDF، شیشه، فلز) با الگوریتم گیلوتینی، نقشهٔ کارگاهی، DXF و PWA",
+  "description": "بهینه‌سازی برش دوبعدی ورق (چوب، MDF، شیشه، فلز) با الگوریتم گیلوتینی، نقشهٔ کارگاهی، DXF و PWA — رابط چهارصفحه‌ای",
   "author": "Abbas Koroushad",
   "license": "MIT",
   "homepage": "https://gase99.github.io/Webxplusx/",

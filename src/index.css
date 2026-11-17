@@ -19,8 +19,8 @@
   --surface-2: #f5f8fd;
   --surface-3: #e6edf8;
   --text: #081120;
-  --muted: #26364d;
-  --subtle: #465a75;
+  --muted: #1a2b42;
+  --subtle: #33475f;
   --border: #bdcadc;
   --border-strong: #8093ac;
   --accent: #0e7490;
@@ -32,6 +32,9 @@
   --focus: #06b6d4;
   --shadow: 0 20px 50px -32px rgb(15 23 42 / 0.55);
   --on-accent: #ffffff;
+  --radius-lg: 1.35rem;
+  --radius-md: 1rem;
+  --radius-sm: 0.7rem;
 }
 
 .dark {
@@ -41,8 +44,8 @@
   --surface-2: #16243a;
   --surface-3: #1d2f4a;
   --text: #f8fbff;
-  --muted: #dbe7f5;
-  --subtle: #b9c8dc;
+  --muted: #e6eefa;
+  --subtle: #cbd8ea;
   --border: #3b5271;
   --border-strong: #6984a7;
   --accent: #22d3ee;
@@ -54,6 +57,101 @@
   --focus: #67e8f9;
   --shadow: 0 24px 60px -28px rgb(0 0 0 / 0.85);
   --on-accent: #05121e;
+}
+
+/* ------------------------------------------------------------------ */
+/*  تنظیمات ظاهری کاربر (منوی ⋮ / داشبورد) — روی <html> اعمال می‌شود  */
+/*  پالت رنگ تأکید، سبک نوار بالا، گردی گوشه‌ها و سطح انیمیشن.         */
+/* ------------------------------------------------------------------ */
+:root[data-accent='ocean'] {
+  --accent: #0e7490;
+  --accent-2: #6d28d9;
+  --accent-soft: #cffafe;
+  --focus: #06b6d4;
+}
+:root[data-accent='violet'] {
+  --accent: #6d28d9;
+  --accent-2: #0e7490;
+  --accent-soft: #ede9fe;
+  --focus: #8b5cf6;
+}
+:root[data-accent='emerald'] {
+  --accent: #047857;
+  --accent-2: #0e7490;
+  --accent-soft: #d1fae5;
+  --focus: #10b981;
+}
+:root[data-accent='rose'] {
+  --accent: #be123c;
+  --accent-2: #7c3aed;
+  --accent-soft: #ffe4e6;
+  --focus: #f43f5e;
+}
+:root[data-accent='amber'] {
+  --accent: #b45309;
+  --accent-2: #be123c;
+  --accent-soft: #fef3c7;
+  --focus: #f59e0b;
+}
+:root[data-accent='graphite'] {
+  --accent: #334155;
+  --accent-2: #0e7490;
+  --accent-soft: #e2e8f0;
+  --focus: #64748b;
+}
+
+.dark[data-accent='ocean'] {
+  --accent: #22d3ee;
+  --accent-2: #a78bfa;
+  --accent-soft: #073344;
+  --focus: #67e8f9;
+}
+.dark[data-accent='violet'] {
+  --accent: #a78bfa;
+  --accent-2: #22d3ee;
+  --accent-soft: #2b1d55;
+  --focus: #c4b5fd;
+}
+.dark[data-accent='emerald'] {
+  --accent: #34d399;
+  --accent-2: #22d3ee;
+  --accent-soft: #06301f;
+  --focus: #6ee7b7;
+}
+.dark[data-accent='rose'] {
+  --accent: #fb7185;
+  --accent-2: #a78bfa;
+  --accent-soft: #43111f;
+  --focus: #fda4af;
+}
+.dark[data-accent='amber'] {
+  --accent: #fbbf24;
+  --accent-2: #fb7185;
+  --accent-soft: #3f2a05;
+  --focus: #fcd34d;
+}
+.dark[data-accent='graphite'] {
+  --accent: #cbd5e1;
+  --accent-2: #22d3ee;
+  --accent-soft: #1e293b;
+  --focus: #e2e8f0;
+}
+
+/* گردی گوشه‌ها: نرم / گرد / تیز */
+:root[data-corners='soft'] {
+  --radius-lg: 1.35rem;
+  --radius-md: 1rem;
+  --radius-sm: 0.7rem;
+}
+:root[data-corners='round'] {
+  --radius-lg: 1.9rem;
+  --radius-md: 1.35rem;
+  --radius-sm: 0.95rem;
+}
+:root[data-corners='sharp'] {
+  --radius-lg: 0.7rem;
+  --radius-md: 0.5rem;
+  --radius-sm: 0.35rem;
 }
 
 body {
@@ -96,14 +194,14 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 .panel {
   border: 2px solid var(--border);
-  border-radius: 1.35rem;
+  border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: var(--shadow);
 }
 
 .panel-soft {
   border: 2px solid var(--border);
-  border-radius: 1.1rem;
+  border-radius: var(--radius-md);
   background: var(--surface-2);
 }
 
@@ -433,6 +531,443 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .dark .control-sheet .border-slate-200,
 .dark .control-sheet .border-slate-300 { border-color: var(--border); }
 .dark .control-sheet .ring-slate-200 { --tw-ring-color: var(--border); }
+
+/* ------------------------------------------------------------------ */
+/*  حلقهٔ رنگی چرخان دور دکمه‌ها (accent-ring)                         */
+/*  یک گرادیان مخروطی دور تا دور لبهٔ دکمه می‌چرخد؛ فقط روی عناصر       */
+/*  برجسته (دکمه‌های اصلی، صفحهٔ فعال) و قابل خاموش‌کردن از منوی ⋮.     */
+/* ------------------------------------------------------------------ */
+@property --ring-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.accent-ring {
+  position: relative;
+  isolation: isolate;
+}
+/* خاموش‌بودن ::after نباید نشانگرهای دیگر (؟ / ●) را پنهان کند */
+.accent-ring::before {
+  z-index: 1;
+}
+.accent-ring::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  z-index: -1;
+  border-radius: inherit;
+  padding: 3px;
+  background: conic-gradient(
+    from var(--ring-angle),
+    transparent 0deg 40deg,
+    var(--accent) 70deg,
+    var(--accent-2) 110deg,
+    transparent 150deg 360deg
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: ring-spin 3.4s linear infinite;
+  pointer-events: none;
+}
+@keyframes ring-spin {
+  to {
+    --ring-angle: 360deg;
+  }
+}
+/* وقتی انیمیشن خاموش/کم است: حلقه ثابت و ملایم می‌شود */
+:root[data-ring='off'] .accent-ring::after {
+  display: none;
+}
+:root[data-motion='off'] .accent-ring::after {
+  animation: none;
+}
+:root[data-motion='soft'] .accent-ring::after {
+  animation-duration: 6.5s;
+  opacity: 0.75;
+}
+@media (prefers-reduced-motion: reduce) {
+  .accent-ring::after {
+    animation-duration: 9s;
+  }
+  * {
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  نوار بالا — چهار سبک انتخابی کاربر (شیشه‌ای/توپر/گرادیان/ساده)      */
+/* ------------------------------------------------------------------ */
+:root[data-header='solid'] .app-header {
+  background: var(--accent);
+  border-bottom-color: color-mix(in srgb, var(--accent) 60%, #000);
+}
+:root[data-header='solid'] .app-header h1,
+:root[data-header='solid'] .app-header .page-eyebrow {
+  color: var(--on-accent);
+}
+:root[data-header='solid'] .app-header .theme-toggle,
+:root[data-header='solid'] .app-header .dots-button {
+  background: color-mix(in srgb, var(--on-accent) 16%, transparent);
+  border-color: color-mix(in srgb, var(--on-accent) 40%, transparent);
+  color: var(--on-accent);
+}
+:root[data-header='gradient'] .app-header {
+  background: linear-gradient(100deg, var(--accent), var(--accent-2));
+  border-bottom-color: color-mix(in srgb, var(--accent-2) 55%, #000);
+}
+:root[data-header='gradient'] .app-header h1,
+:root[data-header='gradient'] .app-header .page-eyebrow {
+  color: #ffffff;
+}
+:root[data-header='gradient'] .app-header .theme-toggle,
+:root[data-header='gradient'] .app-header .dots-button {
+  background: rgb(255 255 255 / 0.18);
+  border-color: rgb(255 255 255 / 0.45);
+  color: #ffffff;
+}
+:root[data-header='minimal'] .app-header {
+  background: transparent;
+  border-bottom-color: var(--border);
+  backdrop-filter: none;
+}
+:root[data-header='minimal'] .app-header .theme-toggle,
+:root[data-header='minimal'] .app-header .dots-button {
+  background: var(--surface);
+}
+
+.page-eyebrow {
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+}
+:root[data-header='solid'] .page-eyebrow,
+:root[data-header='gradient'] .page-eyebrow {
+  color: rgb(255 255 255 / 0.9);
+}
+
+/* دکمهٔ سه‌نقطهٔ منو — دایرهٔ آرام با حلقهٔ چرخان */
+.dots-button {
+  display: grid;
+  place-items: center;
+  width: 2.8rem;
+  height: 2.8rem;
+  border: 2px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.12s ease;
+}
+.dots-button:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-2));
+}
+.dots-button-open {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface-2));
+}
+
+/* منوی ⋮ و شیت تنظیمات ظاهری — سطح روشن/تیره مستقل از سلکتورهای Tailwind */
+.app-menu {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  box-shadow:
+    var(--shadow),
+    0 30px 70px -40px rgb(2 6 23 / 0.6);
+  color: var(--text);
+}
+
+/* ------------------------------------------------------------------ */
+/*  نشان‌ها و تیترهای صفحه — کنتراست بالاتر از قبل                      */
+/* ------------------------------------------------------------------ */
+.page-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.45rem;
+  border: 2px solid color-mix(in srgb, var(--chip, var(--accent)) 55%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--chip, var(--accent)) 14%, var(--surface));
+  color: color-mix(in srgb, var(--chip, var(--accent)) 62%, var(--text));
+  padding: 0.18rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 900;
+  line-height: 1.6;
+}
+.dark .page-chip {
+  color: color-mix(in srgb, var(--chip, var(--accent)) 40%, #ffffff);
+  background: color-mix(in srgb, var(--chip, var(--accent)) 24%, var(--surface));
+}
+
+.page-heading {
+  color: var(--text);
+  font-size: clamp(1.6rem, 1.25rem + 1vw, 2.25rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+.page-lede {
+  margin-top: 0.35rem;
+  max-width: 62rem;
+  color: var(--muted);
+  font-size: 0.98rem;
+  font-weight: 700;
+  line-height: 2;
+}
+
+.badge-warn {
+  border-color: color-mix(in srgb, var(--warning) 70%, var(--border));
+  background: color-mix(in srgb, var(--warning) 18%, var(--surface));
+  color: color-mix(in srgb, var(--warning) 70%, var(--text));
+}
+.dark .badge-warn {
+  color: #fde68a;
+}
+.badge-ok {
+  border-color: color-mix(in srgb, var(--success) 60%, var(--border));
+  background: color-mix(in srgb, var(--success) 15%, var(--surface));
+  color: color-mix(in srgb, var(--success) 75%, var(--text));
+}
+.dark .badge-ok {
+  color: #a7f3d0;
+}
+
+/* چیپ‌های جریان ورود سریع */
+.flow-chip {
+  border: 2px solid var(--border);
+  border-radius: 0.7rem;
+  padding: 0.12rem 0.5rem;
+  background: var(--surface-2);
+  color: var(--text);
+}
+.flow-chip-sky {
+  border-color: color-mix(in srgb, #0284c7 55%, var(--border));
+  background: color-mix(in srgb, #0284c7 14%, var(--surface));
+  color: color-mix(in srgb, #0284c7 70%, var(--text));
+}
+.dark .flow-chip-sky {
+  color: #bae6fd;
+}
+.flow-chip-green {
+  border-color: color-mix(in srgb, #047857 55%, var(--border));
+  background: color-mix(in srgb, #047857 14%, var(--surface));
+  color: color-mix(in srgb, #047857 70%, var(--text));
+}
+.dark .flow-chip-green {
+  color: #a7f3d0;
+}
+
+/* پیام «ذخیره شد» پایین صفحه */
+.save-toast {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 6.5rem;
+  z-index: 45;
+  margin-inline: auto;
+  width: fit-content;
+  max-width: calc(100vw - 2rem);
+  border: 2px solid color-mix(in srgb, var(--success) 55%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--success) 16%, var(--surface));
+  color: color-mix(in srgb, var(--success) 80%, var(--text));
+  padding: 0.55rem 1.1rem;
+  font-size: 0.92rem;
+  font-weight: 900;
+  box-shadow: var(--shadow);
+}
+.dark .save-toast {
+  color: #a7f3d0;
+}
+
+/* ------------------------------------------------------------------ */
+/*  نوار راهنمای پایین صفحه (PageRail)                                 */
+/* ------------------------------------------------------------------ */
+.app-shell {
+  padding-bottom: 0;
+}
+
+/* بارکد رنگی صفحه: نوار نازک بالای صفحه با رنگ همان صفحه */
+.app-page-dashboard .app-header {
+  box-shadow: inset 0 3px 0 #0ea5e9;
+}
+.app-page-drawing .app-header {
+  box-shadow: inset 0 3px 0 #8b5cf6;
+}
+.app-page-outputs .app-header {
+  box-shadow: inset 0 3px 0 #10b981;
+}
+.app-page-guide .app-header {
+  box-shadow: inset 0 3px 0 #f59e0b;
+}
+
+.page-rail {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 35;
+  border-top: 2px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 95%, transparent);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 -18px 40px -30px rgb(2 6 23 / 0.55);
+}
+.page-rail-inner {
+  margin-inline: auto;
+  max-width: 1500px;
+  padding: 0.45rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom));
+}
+.page-rail-caption {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.25rem 0.3rem;
+}
+.page-rail-title {
+  color: var(--text);
+  font-size: 0.76rem;
+  font-weight: 900;
+}
+.page-rail-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.4rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.page-rail-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  padding: 0.42rem 0.55rem;
+  text-align: start;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.12s ease;
+}
+.page-rail-item:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  transform: translateY(-1px);
+}
+.page-rail-item-active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+}
+.page-rail-num {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 0.6rem;
+  background: var(--surface-3);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 900;
+}
+.page-rail-item-active .page-rail-num {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.page-rail-text {
+  min-width: 0;
+  line-height: 1.35;
+}
+.page-rail-label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+.page-rail-hint {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--subtle);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+@media (max-width: 639px) {
+  /* روی موبایل فقط یک خط راهنما زیر فاصلهٔ امن پایین صفحه جا می‌شود */
+  .page-rail-item {
+    flex-direction: column;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.3rem 0.3rem;
+    text-align: center;
+  }
+  .page-rail-num {
+    width: 1.6rem;
+    height: 1.6rem;
+    font-size: 0.8rem;
+  }
+  .page-rail-label {
+    font-size: 0.72rem;
+  }
+  .page-rail-hint {
+    display: none;
+  }
+  .page-rail-caption {
+    justify-content: center;
+  }
+}
+@media (min-width: 640px) {
+  .page-rail-inner {
+    padding-bottom: calc(0.6rem + env(safe-area-inset-bottom));
+  }
+  .page-rail-item {
+    padding: 0.5rem 0.7rem;
+  }
+  .page-rail-label {
+    font-size: 0.9rem;
+  }
+}
+
+/* ورود نرم محتوای هر صفحه */
+.page-enter {
+  animation: page-in 0.28s ease both;
+}
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+:root[data-motion='off'] .page-enter {
+  animation: none;
+}
+:root[data-motion='soft'] .page-enter {
+  animation-duration: 0.45s;
+}
+
+.btn {
+  border-radius: var(--radius-sm);
+}
 
 /* ------------------------------------------------------------------ */
 /*  اسکرول‌بار و ورودی‌های عددی                                        */
