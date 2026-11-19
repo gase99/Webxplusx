@@ -70,8 +70,15 @@ afterEach(() => {
 
 describe('پوستهٔ داشبوردی — نبود هدر و ناوبری پنج‌گانه', () => {
   it('هیچ هدر/نوار بالایی در DOM نیست و نوار پایین وجود دارد', () => {
+    // نوار بالایی پایدار برنامه (هدر اپ) حذف شده است
     expect(document.querySelector('header.app-header')).toBeNull();
-    expect(document.querySelector('header')).toBeNull();
+    expect(container.querySelector('.app-shell > header')).toBeNull();
+    expect(container.querySelector('main > header')).toBeNull();
+    // عنوان‌های داخل صفحه مجازند، ولی هیچ‌کدام سربرگ سراسری (banner) نیستند
+    const banners = Array.from(container.querySelectorAll('header')).filter(
+      (element) => element.getAttribute('role') === 'banner',
+    );
+    expect(banners).toHaveLength(0);
     const nav = container.querySelector('nav.bottom-nav');
     expect(nav).not.toBeNull();
     // نوار پایین پنج زبانه دارد
@@ -155,6 +162,31 @@ describe('پوستهٔ داشبوردی — نبود هدر و ناوبری پن
     await flush();
     const stored = JSON.parse(localStorage.getItem('acut_packing_settings') ?? '{}');
     expect(stored.selection.id).toBe('skyline');
+  });
+
+  it('محاسبه از داشبورد انجام می‌شود و نتیجه در زبانه‌های نقشه/خروجی می‌ماند', async () => {
+    // دکمهٔ اصلی محاسبه در داشبورد
+    const runButton = Array.from(container.querySelectorAll('button')).find((button) =>
+      /محاسبه/.test(button.textContent ?? ''),
+    );
+    expect(runButton).toBeTruthy();
+
+    await act(async () => (runButton as HTMLButtonElement).click());
+    await flush(8);
+
+    // بعد از محاسبه، زبانهٔ نقشه نتیجه دارد و پیام «هنوز محاسبه نشده» نیست
+    await act(async () => tabButton('map')?.click());
+    await flush();
+    expect(text()).not.toContain('هنوز');
+
+    // رفتن به خروجی‌ها و برگشت به نقشه — نتیجه باید همان بماند
+    await act(async () => tabButton('results')?.click());
+    await flush();
+    const resultsText = text();
+    await act(async () => tabButton('map')?.click());
+    await flush();
+    expect(text().length).toBeGreaterThan(200);
+    expect(resultsText.length).toBeGreaterThan(200);
   });
 
   it('deep link با hash کار می‌کند (رفرش صفحه ناوبری را نمی‌شکند)', async () => {
