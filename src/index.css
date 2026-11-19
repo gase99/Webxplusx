@@ -270,6 +270,145 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   top: calc(var(--safe-top) + 0.5rem);
 }
 
+/* صفحهٔ قفل لایسنس */
+.lock-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  overflow-y: auto;
+  padding: calc(var(--safe-top) + 1rem) 1rem calc(var(--safe-bottom) + 1rem);
+  background: var(--bg);
+}
+
+.lock-card {
+  width: 100%;
+  max-width: 26rem;
+  border: 2px solid var(--border);
+  border-radius: 1.5rem;
+  background: var(--surface);
+  padding: 1.75rem 1.5rem;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.lock-icon {
+  font-size: 2.75rem;
+  line-height: 1;
+}
+
+.lock-title {
+  margin-top: 0.75rem;
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: var(--text);
+}
+
+.lock-text {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.9;
+  color: var(--muted);
+}
+
+.lock-device {
+  margin-top: 1.25rem;
+  border: 2px dashed var(--border);
+  border-radius: 1rem;
+  padding: 0.85rem 1rem;
+  text-align: start;
+}
+
+.lock-device-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.lock-device-row {
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.lock-device-id {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  border-radius: 0.6rem;
+  background: var(--bg);
+  padding: 0.45rem 0.6rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.lock-telegram {
+  margin-top: 1.25rem;
+  width: 100%;
+  font-size: 1rem;
+  padding: 0.85rem 1rem;
+}
+
+.lock-divider {
+  margin: 1.25rem 0 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--muted);
+}
+
+.lock-field {
+  display: block;
+  text-align: start;
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.lock-input {
+  margin-top: 0.4rem;
+  width: 100%;
+  border: 2px solid var(--border);
+  border-radius: 0.8rem;
+  background: var(--bg);
+  padding: 0.6rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text);
+  resize: vertical;
+}
+
+.lock-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.lock-error {
+  margin-top: 0.6rem;
+  border-radius: 0.6rem;
+  background: color-mix(in srgb, #ef4444 12%, transparent);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #dc2626;
+}
+
+.lock-activate {
+  margin-top: 0.75rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+}
+
+.lock-activate:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 @media print {
   .bottom-nav,
   .notice-toast,

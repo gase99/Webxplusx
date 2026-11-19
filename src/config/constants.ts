@@ -70,4 +70,37 @@ export const STORAGE_KEYS = {
   draft: 'acut_draft',
   packingSettings: 'acut_packing_settings',
   updateDismissed: 'acut_update_dismissed',
+  deviceId: 'acut_device_id',
+  license: 'acut_license',
+  limitReached: 'acut_limit_reached',
+} as const;
+
+/* ------------------------------------------------------------------ */
+/*  ۴) لایسنس و قفل برنامه                                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * تعداد پروژهٔ رایگان — بعد از ذخیرهٔ این تعداد پروژه، برنامه قفل می‌شود و
+ * برای ادامه باید لایسنس از ربات تلگرام تهیه شود.
+ */
+export const FREE_PROJECT_LIMIT = 3;
+
+/**
+ * نام کاربری ربات تلگرام صدور لایسنس (بدون @).
+ * ⚠️ بعد از ساخت ربات با @BotFather، نام واقعی ربات را اینجا وارد کنید.
+ */
+export const TELEGRAM_BOT_USERNAME = 'AcutLicenseBot';
+
+/** لینک مستقیم ربات تلگرام */
+export const TELEGRAM_BOT_URL = `https://t.me/${TELEGRAM_BOT_USERNAME}`;
+
+/**
+ * کلید عمومی (JWK) برای اعتبارسنجی امضای لایسنس — ECDSA P-256.
+ * کلید خصوصی فقط روی سرور ربات تلگرام است (bot/.env) و هرگز در برنامه نیست.
+ */
+export const LICENSE_PUBLIC_KEY_JWK = {
+  kty: 'EC',
+  crv: 'P-256',
+  x: 'RMeMkoO4Z3OIuyKUivUm9cmPDLvbBJOgNtgw33Lq3Rw',
+  y: '3ggTrnTlMAwZWqXoVCV6_TrRsrNhgPymhtg7AXqCoh8',
 } as const;

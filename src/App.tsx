@@ -35,6 +35,9 @@ import {
 } from './db/database';
 import { classifyDbError } from './db/errors';
 import { useLayoutEngine } from './hooks/useLayoutEngine';
+import LockScreen from './components/LockScreen';
+import { isAppLocked, markLimitReached, recordTrialProjects } from './lib/license';
+import { FREE_PROJECT_LIMIT } from './config/constants';
 import { computePartsStats } from './lib/stats';
 import { logger } from './lib/logger';
 import { NOTICE_TIMEOUT_MS, STORAGE_KEYS } from './config/constants';
@@ -102,6 +105,8 @@ export default function App() {
   // --- مدیریت پروژه‌ها — ذخیره در IndexedDB (Dexie) ---
   const [projects, setProjects] = useState<Project[]>([]);
   const [dbReady, setDbReady] = useState(false);
+  // قفل لایسنس: null = در حال بررسی، true = قفل، false = آزاد
+  const [locked, setLocked] = useState<boolean | null>(null);
   const [dbError, setDbError] = useState<DbError | null>(null);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(initialWorkspace.projectId);
   const [currentProjectName, setCurrentProjectName] = useState(initialWorkspace.projectName);
@@ -137,6 +142,7 @@ export default function App() {
   );
 
   const runCalculation = useCallback(() => {
+    if (locked !== false) return;
     void engineCore.calculate({
       parts: rows,
       settings,
@@ -144,7 +150,7 @@ export default function App() {
       maxSheets: packing.maxSheets,
       signature: layoutSignatureOf(),
     });
-  }, [engineCore, rows, settings, packing.selection, packing.maxSheets, layoutSignatureOf]);
+  }, [locked, engineCore, rows, settings, packing.selection, packing.maxSheets, layoutSignatureOf]);
 
   const engine: EngineView = useMemo(
     () => ({
@@ -291,6 +297,23 @@ export default function App() {
     };
   }, []);
 
+  // بررسی قفل لایسنس هنگام اجرا (بعد از بارگذاری پروژه‌ها)
+  useEffect(() => {
+    if (!dbReady) return;
+    let cancelled = false;
+    (async () => {
+      // اگر کاربر از قبل ۳+ پروژه دارد و پرچم سقف ثبت نشده، ثبتش کن
+      try {
+        if (recordTrialProjects(projects.map(p => p.id)) >= FREE_PROJECT_LIMIT) markLimitReached();
+      } catch { setLocked(true); return; }
+      const isLocked = await isAppLocked();
+      if (!cancelled) setLocked(isLocked);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [dbReady, projects.length]);
+
   // پیش‌نویس خودکار فضای کاری (فایل موقت — همچنان در localStorage)
   useEffect(() => {
     saveWorkspaceDraft({
@@ -369,6 +392,7 @@ export default function App() {
 
   const saveProject = useCallback(
     async (saveAs = false) => {
+      if (locked !== false) return;
       const now = Date.now();
       let id = currentProjectId;
       let name = currentProjectName;
@@ -414,8 +438,13 @@ export default function App() {
       setCurrentProjectName(name);
       setBaselineSignature(computeWorkspaceSignature(rows, settings, name));
       setSaveNotice(`پروژهٔ «${name}» ذخیره شد ✓`);
+      // رسیدن به سقف پروژه‌های رایگان ⇒ قفل برنامه (مگر لایسنس معتبر داشته باشد)
+      if (recordTrialProjects(next.map(p => p.id)) >= FREE_PROJECT_LIMIT) {
+        markLimitReached();
+        setLocked(await isAppLocked());
+      }
     },
-    [currentProjectId, currentProjectName, projects, rows, settings, layoutState],
+    [locked, currentProjectId, currentProjectName, projects, rows, settings, layoutState],
   );
 
   const openProject = (project: Project) => {
@@ -516,6 +545,22 @@ export default function App() {
       theme,
     ],
   );
+
+  // قفل لایسنس — تا بررسی کامل نشود، رابط نمایش داده نمی‌شود
+  if (locked === null || !dbReady) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-[var(--bg)] px-4">
+        <div className="text-center">
+          <div className="mx-auto mb-4 h-14 w-14 animate-spin rounded-full border-4 border-[var(--accent)] border-t-transparent" />
+          <p className="text-lg font-extrabold text-[var(--text)]">{fa.common.loading}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (locked) {
+    return <LockScreen onUnlocked={() => setLocked(false)} />;
+  }
 
   // تا دیتابیس بارگذاری و مهاجرت انجام شود، رابط نمایش داده نمی‌شود
   if (!dbReady) {
