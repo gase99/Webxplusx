@@ -24,11 +24,16 @@
  * در یک فایل قرار می‌گیرند و بالای هرکدام برچسب `SHEET n` نوشته می‌شود.
  */
 import type { LayoutResult } from './algorithm';
-import { GROOVE_INSET_MM, getPartEdgeSides, type PartSide } from './partEdges';
+import { getPartEdgeSides, type PartSide } from './partEdges';
+import { DXF_LABEL_TEXT_HEIGHT_MM, DXF_SHEET_GAP_MM, GROOVE_INSET_MM } from './config/constants';
 import type { CutPart } from './types/part';
 
-/** فاصلهٔ بین ورق‌ها وقتی چند ورق در یک فایل کنار هم قرار می‌گیرند (mm) */
-export const DXF_SHEET_GAP_MM = 100;
+/**
+ * فاصلهٔ بین ورق‌ها وقتی چند ورق در یک فایل کنار هم قرار می‌گیرند (mm) —
+ * منبع واحد: `config/constants.ts` (قابل تنظیم، نه عدد جادویی پراکنده).
+ * برای سازگاری با واردکننده‌های قبلی از همین‌جا هم صادر می‌شود.
+ */
+export { DXF_SHEET_GAP_MM } from './config/constants';
 
 /** کد یکتای هر قطعهٔ چیده‌شده، مشترک بین DXF و لیبل چاپی: مثل S2-07 */
 export function getPlacementCode(sheetIndex: number, indexInSheet: number): string {
@@ -156,7 +161,7 @@ export function generateDxf(result: LayoutResult, parts: CutPart[]): string {
         'LABEL',
         X(stock.length / 2),
         stock.width + DXF_SHEET_GAP_MM * 0.35,
-        Math.min(45, Math.max(18, stock.width * 0.018)),
+        Math.min(DXF_LABEL_TEXT_HEIGHT_MM, Math.max(18, stock.width * 0.018)),
         `SHEET ${sheet.sheetIndex + 1} - ${stock.length} x ${stock.width} mm`,
       );
 

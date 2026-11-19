@@ -14,10 +14,14 @@ IndexedDB و فرایند ساخت بسته‌های اندروید (Capacitor) 
 - تعاریف تخصصی (نوار / فارسی ۴۵° / شیار)
 - مدل دادهٔ قطعه و جدول ورود اطلاعات
 - ناوبری با کیبورد
-- فاز ۲: موتور بهینه‌سازی برش گیلوتینی و مدل Kerf
+- فاز ۲: موتور چیدمان چندالگوریتمی (`src/engine/`) و مدل Kerf
 - فاز ۳: نقشهٔ برش SVG و قرارداد علائم کارگاهی
 - فاز ۴: خروجی چاپ A4، DXF برای CNC و لیبل قطعات
 - فاز ۵/۶: مدیریت پروژه‌ها و دیتابیس IndexedDB
+- رابط داشبوردی: پنج صفحه + نوار پایین + safe-area و دکمهٔ بازگشت
+- نقشهٔ برش و دسترسی‌پذیری
+- ذخیره‌سازی: IndexedDB و مدیریت خطا
+- تست‌ها و CI
 - نسخه‌های بومی: اندروید (Capacitor) و ویندوز (Electron)
 - ساختار فایل‌ها
 
@@ -37,6 +41,8 @@ npm run build:app  # بیلد بستهٔ بومی (base نسبی، بدون Serv
 | `npm run android:open` | بیلد + سینک + باز کردن پروژه در Android Studio |
 | `npm run android:apk` | بیلد + سینک + `gradlew assembleDebug` → `app-debug.apk` |
 | `npm run android:aab` | بیلد + سینک + `gradlew bundleRelease` → `app-release.aab` |
+| `npm test` | اجرای تست‌های واحد (Vitest — `vitest run`) |
+| `npm run typecheck` | بررسی تایپ‌ها بدون بیلد (`tsc --noEmit`) |
 | `npm run desktop:install` | نصب وابستگی‌های Electron (یک‌بار) |
 | `npm run desktop:dev` | اجرای نسخهٔ دسکتاپ روی سیستم خودتان |
 | `npm run build:win` | ساخت **اینستالر NSIS** ویندوز با electron-builder (همراه `latest.yml` برای بروزرسانی خودکار) |
@@ -96,71 +102,83 @@ interface CutPart {
 امکانات تکمیلی: جهت‌نمای ↑/↓ بین ردیف‌ها در همان ستون حرکت می‌کند، متن اینپوت هنگام فوکوس
 انتخاب (Select) می‌شود تا بازنویسی سریع باشد، و ارقام فارسی/عربی (۰۱۲۳…) در ابعاد پذیرفته می‌شوند.
 
-## فاز ۲ — موتور بهینه‌سازی برش (Guillotine) — `src/algorithm.ts`
+## فاز ۲ — موتور چیدمان چندالگوریتمی — `src/engine/`
 
-منطق محاسباتی کاملاً مستقل از React است (فایل خالص TypeScript) تا در تست، سرور و
-فاز ۳ قابل‌استفادهٔ مجدد باشد:
+موتور از یک الگوریتم ثابت به یک **رجیستری الگوریتم** تبدیل شده است. امضای قدیمی
+`calculateLayout(parts, stock, options)` در `src/algorithm.ts` دست‌نخورده باقی مانده
+و همان گیلوتینی قبلی را اجرا می‌کند (خروجی برای ورودی یکسان بیت‌به‌بیت تغییر نکرده
+است — با تست «پروندهٔ ثابت» کنترل می‌شود).
 
-```ts
-import { calculateLayout } from './algorithm';
-
-const result = calculateLayout(parts, { length: 3660, width: 1830 }, { kerf: 4, allowRotation: true });
-```
-
-- **روش:** Guillotine Bin Packing — هر برش از یک لبه تا لبهٔ مقابل است، دقیقاً مثل
-  ارهٔ پانل‌بُر کارگاه. فضای آزاد صفحه به‌صورت مستطیل‌هایی نگه داشته می‌شود که با
-  هر جایگذاری با یک برش سرتاسری تقسیم می‌شوند (+ ادغام مستطیل‌های مجاور).
-- **ترتیب چیدمان:** قطعات بزرگ اول — مرتب‌سازی نزولی بر اساس مساحت (تساوی: بزرگ‌ترین بُعد).
-- **انتخاب جای قطعه:** Best Area Fit و در تساوی Best Short Side Fit، روی همهٔ
-  صفحه‌های باز و در هر دو جهت (عادی و چرخش ۹۰ درجه). چرخش فعلاً یک گزینهٔ سراسری
-  است؛ با آمدن «قفل گرین/رگهٔ چوب» به‌ازای هر قطعه جدا می‌شود.
-- **مدل Kerf:** خوراک تیغه از سمت فضای باقی‌مانده گرفته می‌شود نه از خود قطعه —
-  فضای اشغالی = ابعاد قطعه + kerf در هر جهتی که بعدش فضا بماند (چسبیده به لبهٔ
-  صفحه kerf لازم نیست) و این نوار در تمام طول خط برش گیلوتینی حفظ می‌شود تا دو
-  قطعهٔ مجاور هرگز بدون فاصلهٔ تیغه به هم نچسبند. درصد پرت شامل خوراک تیغه است.
-
-**دستگاه مختصات:** مبدأ (0,0) گوشهٔ صفحه، X در جهت طول صفحه و Y در جهت عرض آن.
-در خروجی، `width` اندازهٔ قطعه روی X و `height` اندازه روی Y است (با احتساب چرخش).
-
-**شمای خروجی (JSON):**
+### رابط مشترک
 
 ```ts
-interface LayoutResult {
-  stock: { length: number; width: number };
-  kerf: number;
-  allowRotation: boolean;
-  sheets: SheetLayout[];        // چیدمان به‌تفکیک هر صفحه + پرت/بهره‌وری همان صفحه
-  placements: PlacedPart[];     // فهرست تخت همهٔ قطعات چیده‌شده (ورودی فاز ۳)
-  unplaced: UnplacedPart[];     // قطعاتی که در هیچ جهتی در صفحه جا نمی‌شوند
-  summary: {
-    sheetCount: number;         // صفحات مصرفی
-    wastePercentage: number;    // درصد پرت کل
-    utilizationPercentage: number;
-    placedCount: number; totalParts: number; /* … */
-  };
-}
-
-interface PlacedPart {
-  id: string;            // شناسهٔ ردیف قطعه در جدول
-  name?: string;
-  instanceIndex: number; // چندمین نمونه از تعداد آن ردیف (از ۱)
-  sheetIndex: number;    // شمارهٔ صفحه (از ۰)
-  x: number; y: number;  // نقطهٔ شروع روی صفحه (mm)
-  width: number;         // اندازهٔ نهایی روی X با احتساب چرخش (mm)
-  height: number;        // اندازهٔ نهایی روی Y با احتساب چرخش (mm)
-  isRotated: boolean;    // چرخش ۹۰ درجه داشته؟
+interface PackingAlgorithm {
+  id: 'guillotine' | 'maxrects' | 'skyline' | 'shelf' | 'optimizer';
+  label: string;                       // نام فارسی
+  description: string;                 // توضیح فارسی
+  variants: { value: AlgorithmVariant; label: string }[];
+  slow?: boolean;                      // نیاز به Web Worker/پیشرفت/لغو
+  run(context: PackingContext): PackingOutcome;
 }
 ```
 
-در رابط کاربری، بالای جدول (`LayoutPanel`) می‌توان طول/عرض صفحهٔ خام (با
-پریست‌های ۳۶۶۰×۱۸۳۰ و…)، ضخامت تیغه و مجازبودن چرخش را تنظیم و با دکمهٔ
-«محاسبهٔ چیدمان» الگوریتم را اجرا کرد؛ تعداد صفحات مصرفی و درصد پرت/بهره‌وری
-نمایش داده می‌شود و نتیجهٔ کامل هم در کنسول مرورگر چاپ و هم به‌صورت JSON
-قابل‌مشاهده/کپی است. اگر بعد از محاسبه جدول یا تنظیمات تغییر کند، نتیجه با
-برچسب «قدیمی» مشخص می‌شود.
+`PackingContext` شامل نمونه‌های بازشدهٔ قطعات (`instances`)، ورق، `kerf`،
+`allowRotation`، `maxSheets`، انتخاب الگوریتم، `onProgress` و `signal` (لغو) است.
+`PackingOutcome` شامل `sheets`، `placements` و `unplaced` است؛ ساخت `LayoutResult`
+کامل (خلاصه، درصد پرت/بهره‌وری، متریک‌ها و زمان اجرا) کار مشترک
+`finalizeResult()` در `engine/shared.ts` است، پس همهٔ الگوریتم‌ها خروجی یکسان دارند.
 
-> نکته: خروجی هیوریستیک است (مثل همهٔ موتورهای Nesting تجاری) و بهینگیِ ریاضیِ
-> مطلق تضمین نمی‌شود، اما سریع و برای مقیاس کارگاهی نزدیک به بهینه است.
+### الگوریتم‌ها
+
+| فایل | الگوریتم | یادداشت |
+|---|---|---|
+| `guillotine.ts` | Guillotine Bin Packing | چهار گزینه: `best-area-fit` (پیش‌فرض و برابر نسخهٔ قبلی)، `best-short-side-fit`، `shorter-leftover-axis`، `longer-leftover-axis` |
+| `maxrects.ts` | MaxRects | `best-short-side-fit`، `best-area-fit-mr`، `best-long-side-fit`، `bottom-left` |
+| `skyline.ts` | Skyline | `skyline-bottom-left`، `skyline-min-waste` |
+| `shelf.ts` | Shelf / NFDH | `shelf-first-fit`، `shelf-best-fit` |
+| `optimizer.ts` | Simulated Annealing | درونی: MaxRects یا گیلوتینی؛ بذر (`seed`) و تکرار (`iterations`) برای تکرارپذیری، قابل لغو |
+
+افزودن الگوریتم جدید: پیاده‌سازی رابط + افزودن به `ALGORITHMS` در `registry.ts`.
+
+### قواعد مشترک (نباید نقض شوند)
+
+1. قطعه هرگز از مرز ورق بیرون نمی‌زند.
+2. هیچ دو قطعه‌ای هم‌پوشانی ندارد.
+3. `kerf` فقط از فضای آزاد کم می‌شود (نه از ابعاد قطعه) و بین دو قطعهٔ مجاور
+   حفظ می‌شود.
+4. `allowRotation=false` ⇒ هیچ قطعه‌ای چرخیده نیست.
+5. `maxSheets > 0` ⇒ بیشتر از آن تعداد ورق باز نمی‌شود و باقی قطعات با دلیل
+   `STOCK_EXHAUSTED` گزارش می‌شوند (قطعهٔ بزرگ‌تر از ورق: `LARGER_THAN_SHEET`).
+6. `placedCount + unplacedCount = totalParts` و مساحت‌ها با خلاصه هم‌خوان‌اند.
+
+این شش قاعده در `engine/__tests__/invariants.ts` (`checkInvariants`) کدنویسی شده و
+روی **همهٔ** الگوریتم‌ها اجرا می‌شود.
+
+### اعتبارسنجی ورودی
+
+`validateLayoutInput()` قبل از اجرا صدا زده می‌شود و خطاها را با کد ماشینی و پیام
+فارسی برمی‌گرداند:
+
+| کد | مسدودکننده | معنا |
+|---|---|---|
+| `INVALID_STOCK` | ✅ | طول/عرض ورق ≤ ۰ یا NaN/∞ |
+| `INVALID_KERF` / `INVALID_BAND_THICKNESS` / `INVALID_MAX_SHEETS` | ✅ | مقدار منفی/نامعتبر |
+| `NEGATIVE_DIMENSIONS` | ✅ | ابعاد منفی قطعه |
+| `INVALID_QTY` | ✅ | تعداد منفی |
+| `INVALID_PART_DIMENSIONS` | ✅ | NaN/∞ در ردیف |
+| `FRACTIONAL_QTY` | ⚠️ | تعداد کسری؛ به پایین گرد می‌شود و به کاربر هشدار داده می‌شود |
+| `EMPTY_PART_DIMENSIONS` | ⚠️ | ردیف تک‌بُعدی؛ نادیده گرفته می‌شود |
+| `PART_TOO_SMALL_AFTER_BAND` | ⚠️ | بعد از کسر نوار صفر/منفی می‌شود |
+
+ورودی مسدودکننده هیچ‌وقت به الگوریتم نمی‌رسد؛ `runLayout` نتیجهٔ خالی + گزارش
+برمی‌گرداند (بدون پرتاب استثنا) تا رابط کاربری پیام نشان دهد.
+
+### اجرای سنگین در Web Worker
+
+`src/workers/packing.worker.ts` + `src/workers/packingClient.ts`:
+حالت بهینه‌ساز در ترد جداگانه اجرا می‌شود (پیام‌های `run`/`cancel`/`progress`/`done`/`error`).
+اگر `Worker` در دسترس نباشد یا ساختش شکست بخورد، همان محاسبه روی ترد اصلی انجام
+می‌شود (fallback).
 
 ## فاز ۳ — نقشهٔ برش (SVG) — `src/components/CuttingMap.tsx`
 
@@ -301,6 +319,77 @@ interface Project {
   ذخیره‌شده تشخیص داده می‌شود؛ در هدر و منو با نشان کهربایی دیده می‌شود و هنگام
   بستن/رفرش صفحه، `beforeunload` به کاربر هشدار می‌دهد.
 
+## رابط داشبوردی — پنج صفحه
+
+`src/App.tsx` پوستهٔ برنامه است و **هیچ نوار بالایی ندارد**:
+
+| صفحه | زبانه | فایل | محتوا |
+|---|---|---|---|
+| داشبورد | `#/dashboard` | `pages/DashboardPage.tsx` | کارت‌های وضعیت، دکمهٔ محاسبه، میان‌بر چهار صفحه |
+| قطعات | `#/parts` | `pages/PartsPage.tsx` | تنظیمات ورق/تیغه/نوار + جدول ورود + پیش‌نمایش لبه‌ها |
+| نقشه | `#/map` | `pages/MapPage.tsx` | نقشهٔ برش هر ورق + لیبل‌های کارگاهی |
+| خروجی‌ها | `#/results` | `pages/ResultsPage.tsx` | نتایج، چاپ/PDF، DXF، JSON + مقایسهٔ الگوریتم‌ها |
+| بیشتر | `#/more` | `pages/MorePage.tsx` | الگوریتم و گزینه‌های پیشرفته، پروژه‌ها، تم، نصب، بروزرسانی، راهنما، لاگ |
+
+- وضعیت مشترک (`AppController` در `pages/props.ts`): قطعات، تنظیمات، پروژه، نتیجه و
+  انتخاب الگوریتم همه در `App.tsx` هستند ⇒ جابه‌جایی زبانه چیزی را از دست نمی‌دهد
+  و هیچ صفحه‌ای نسخهٔ دوم منطق محاسبه ندارد.
+- ناوبری: `BottomNav` (ثابت، RTL، `env(safe-area-inset-bottom)`) + `history.pushState`
+  برای هر زبانه. `popstate` و رویداد `backButton` افزونهٔ رسمی `@capacitor/app`
+  به همان مسیر برمی‌گردند؛ در داشبورد Back اپ را می‌بندد. (رویداد DOM قدیمی
+  `backbutton` در Capacitor 8 شلیک نمی‌شود و هستهٔ Capacitor هم مدیریت پیش‌فرضی
+  برای Back ندارد — بدون این افزونه، Back سخت‌افزاری مستقیماً اپ را می‌بست.)
+- محتوا: `.app-content` ارتفاع نوار + ناحیهٔ امن را به‌عنوان `padding-bottom`
+  می‌گیرد تا نوار روی محتوا نیفتد. `.app-shell` فقط `padding-top: env(safe-area-inset-top)`
+  دارد (بدون فضای هدر).
+- `viewport-fit=cover` در `index.html` مقادیر `env(safe-area-inset-*)` را معتبر می‌کند.
+
+### دسترسی‌پذیری نقشه
+
+- `role="img"` + `aria-label` تولیدشدهٔ `describeSheet()` (ابعاد، تعداد قطعه،
+  بهره‌وری، پرت، نام سه قطعهٔ نخست).
+- `tabIndex=0` روی SVG، زوم با `+` / `−` / `۰`، فوکوس مرئی
+  (`focus-visible:ring`).
+- `<details>` با جدول متنی قطعات هر ورق (کد S1-03، نام، x/y، عرض/ارتفاع، چرخش).
+
+---
+
+## ذخیره‌سازی و مدیریت خطا
+
+- `src/db/database.ts` (Dexie/IndexedDB) — توابع `listProjects`، `getProject`،
+  `putProject`، `deleteProject`، `bulkPutProjects`، `countProjects`،
+  `estimateStorage`، `migrateLegacyProjects` همگی از `guardDb()` عبور می‌کنند.
+- `src/db/errors.ts` خطای خام را به `DbError` با انواع `QUOTA_EXCEEDED`، `BLOCKED`،
+  `VERSION_CONFLICT`، `UNAVAILABLE`، `NOT_FOUND`، `UNKNOWN` تبدیل می‌کند؛ هر نوع
+  پیام فارسی کاربرپسند و راهنمای رفع دارد (`userMessage`) و `retryable` بودنش
+  مشخص است.
+- مهاجرت داده‌های قدیمی `localStorage`: کلید قدیمی **بعد از** موفقیت نوشتن در
+  IndexedDB حذف می‌شود (قبلاً ممکن بود پیش از ذخیره پاک شود و داده از دست برود).
+- تنظیمات الگوریتم در `localStorage` (`acut_packing_settings`) و پیش‌نویس فضای
+  کاری در `acut_draft` نگه داشته می‌شوند.
+
+---
+
+## تست‌ها
+
+```bash
+npm test          # vitest run
+npm run typecheck
+```
+
+| فایل | پوشش |
+|---|---|
+| `engine/__tests__/invariants.ts` | بررسی‌کنندهٔ ناوَریانت مشترک + پروندهٔ ثابت بنچمارک |
+| `engine/__tests__/guillotine.test.ts` | ورودی خالی، ورق صفر، ابعاد منفی، تعداد کسری، ۵۰۰ قطعه، چرخش، kerf، سقف ورق، ضخامت نوار، توابع `splitFreeRect`/`mergeFreeRects`، رگرسیون خروجی |
+| `engine/__tests__/algorithms.test.ts` | همهٔ حالت‌های پنج الگوریتم روی پروندهٔ ثابت، بازتولیدپذیری بذر، لغو، پیشرفت، مقایسه، رجیستری، بنچمارک |
+| `engine/__tests__/validation.test.ts` | همهٔ کدهای اعتبارسنجی و رفتار مسدودکننده |
+| `engine/__tests__/integration.test.ts` | DXF و چرخهٔ ذخیره/بازیابی پروژه برای هر الگوریتم |
+| `db/__tests__/errors.test.ts` | تبدیل انواع خطای IndexedDB به پیام فارسی |
+| `__tests__/lib.test.ts` | آمار قطعات، لاگر، پیش‌فرض‌ها، رشته‌های i18n |
+| `__tests__/app.ui.test.tsx` | نبود هدر، پنج زبانه، حالت فعال، حفظ وضعیت، Back، deep-link، ذخیرهٔ انتخاب الگوریتم |
+
+---
+
 ## نسخه‌های بومی — اندروید (Capacitor) و ویندوز (Electron)
 
 همان اپ React/Vite بدون تغییر منطق، داخل بستهٔ نصب‌شدنی اجرا می‌شود. تنظیمات آماده است:
@@ -430,7 +519,27 @@ npm run desktop:dev         # پنجرهٔ Electron با همان بیلد
 
 ```
 src/
-  algorithm.ts                # فاز ۲: موتور چیدمان گیلوتینی (منطق خالص، بدون React)
+  algorithm.ts                # پوستهٔ سازگاری API قدیمی (calculateLayout) — منطق در engine/
+  engine/
+    types.ts                  # رابط مشترک PackingAlgorithm + تایپ‌های ورودی/خروجی
+    shared.ts                 # اعتبارسنجی، بازکردن تعداد، متریک‌ها، finalizeResult
+    guillotine.ts             # گیلوتینی (پیش‌فرض، خروجی برابر نسخهٔ قبل)
+    maxrects.ts               # MaxRects (۴ هیوریستیک)
+    skyline.ts                # Skyline (Bottom-Left / Min-Waste)
+    shelf.ts                  # Shelf / NFDH
+    optimizer.ts              # Simulated Annealing (بذر/تکرار/لغو)
+    registry.ts               # ثبت مرکزی الگوریتم‌ها + normalizeSelection
+    __tests__/                # تست‌های موتور + ناوَریانت مشترک + بنچمارک
+  workers/packing.worker.ts    # اجرای حالت بهینه‌ساز در ترد جدا
+  workers/packingClient.ts     # پل ارتباطی + fallback بدون Worker
+  hooks/useLayoutEngine.ts     # محاسبهٔ مشترک (اعتبارسنجی، پیشرفت، لغو)
+  pages/                       # داشبورد، قطعات، نقشه، خروجی‌ها، بیشتر + props مشترک
+  config/constants.ts          # ثابت‌های متمرکز (شیار، DXF، الگوریتم، رابط)
+  lib/logger.ts                # لاگر متمرکز (جای console.*)
+  lib/stats.ts                 # خلاصهٔ آماری قطعات
+  i18n/fa.ts                   # رشته‌های فارسی رابط
+  db/errors.ts                 # تبدیل خطای IndexedDB به DbError فارسی
+  storage/packingSettings.ts   # ذخیره/بازیابی انتخاب الگوریتم (localStorage)
   exportDxf.ts                # فاز ۴: تولید DXF (R12) برای CNC + کد مشترک لیبل
   partEdges.ts                # نگاشت مشترک لبه‌ها (نوار/فارسی/شیار + چرخش) برای نقشه، DXF و لیبل
   types/part.ts               # مدل داده CutPart + متراژ مواد مصرفی + سازنده‌ها/دادهٔ نمونه
@@ -441,15 +550,19 @@ src/
     CuttingMap.tsx            # فاز ۳: رندر سیاه‌وسفید SVG نقشهٔ برش (زیرکامپوننت PlacedPart)
     ControlSheet.tsx          # برگهٔ کنترل تولید + فاکتور تخمینی متریال و مربع تیک
     LabelSheet.tsx            # فاز ۴: لیبل قطعات — شبکهٔ ۳×۵ روی A4 برای چاپ
-    ProjectManager.tsx        # فاز ۵: Dropdown مدیریت پروژه‌ها + مودال فهرست پروژه‌ها
+    ProjectManager.tsx        # فاز ۵: Dropdown مدیریت پروژه‌ها + مودال/پنل فهرست پروژه‌ها
+    BottomNav.tsx             # نوار ناوبری پایین (پنج زبانه، RTL، safe-area)
+    ErrorBoundary.tsx         # مرز خطا با پیام فارسی و «تلاش دوباره»
+    AlgorithmPicker.tsx       # انتخاب الگوریتم و زیرگزینه‌ها + بذر/تکرار
+    AlgorithmComparison.tsx   # جدول مقایسهٔ الگوریتم‌ها روی یک ورودی
     DataEntryTable.tsx        # جدول دو سطحی + ناوبری کیبورد و مدیریت فوکوس
     PartPreview.tsx           # پیش‌نمایش SVG لبه‌های ردیف فعال
     icons.tsx                 # آیکون‌های فارسی/نوار/شیار و…
-  App.tsx                     # چیدمان صفحه، خلاصهٔ محاسبات، راهنمای علائم
+  App.tsx                     # پوستهٔ داشبوردی: زبانه‌ها، history/Back، وضعیت مشترک (بدون هدر)
   components/UpdateToast.tsx  # اعلان «نسخهٔ جدید برنامه آماده است» (PWA — onNeedRefresh)
 capacitor.config.ts           # پیکربندی Capacitor: Live URL روی GitHub Pages + صفحهٔ خطای آفلاین
 public/offline.html           # صفحهٔ خطای نبود اینترنت در اپ اندروید (server.errorPath)
-android/                      # پروژهٔ بومی اندروید (Capacitor)
+android/                      # پروژهٔ بومی اندروید (Capacitor) — تم NoActionBar + مدیریت insets
 desktop/
   main.cjs                    # فرایند اصلی Electron + پروتکل app:// + بروزرسانی خودکار
   prepare.mjs                 # کپی dist → desktop/web

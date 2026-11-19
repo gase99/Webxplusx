@@ -22,3 +22,13 @@ android/app/src/main/assets/capacitor.plugins.json
 *.aab
 *.keystore
 !android/app/debug.keystore
+
+# Licensing bot secrets and runtime state
+.env
+.env.*
+!.env.example
+bot/*.pem
+bot/*.sqlite*
+
+__pycache__/
+*.pyc

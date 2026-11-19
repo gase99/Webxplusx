@@ -1,15 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { calculateLayout, type LayoutResult } from '../algorithm';
-import { calculateCutDimensions, isValidPart, type CutPart } from '../types/part';
+import type { LayoutResult, PackingProgress } from '../algorithm';
+import { calculateCutDimensions, type CutPart } from '../types/part';
 import {
   BAND_COLOR_PRESETS,
   SHEET_COLOR_PRESETS,
-  computeLayoutSignature,
   type LayoutSettings,
-  type LayoutState,
 } from '../types/project';
 import { downloadDxf } from '../exportDxf';
+import { logger } from '../lib/logger';
 import { prefersPdfExport } from '../platform';
 import CuttingMap from './CuttingMap';
 import LabelSheet from './LabelSheet';
@@ -35,7 +34,25 @@ const STOCK_PRESETS: { label: string; length: number; width: number }[] = [
   { label: '۲۸۰۰ × ۲۰۷۰', length: 2800, width: 2070 },
 ];
 
-export type LayoutPage = 'dashboard' | 'drawing' | 'outputs';
+export type LayoutPage = 'parts' | 'map' | 'results';
+
+/**
+ * نمای موتور چیدمان که App می‌سازد و به همهٔ صفحه‌ها می‌دهد؛ به این ترتیب
+ * «محاسبه» فقط یک‌بار تعریف شده و نتیجه بین صفحه‌ها مشترک است.
+ */
+export interface LayoutEngineView {
+  result: LayoutResult | null;
+  resultParts: CutPart[];
+  isStale: boolean;
+  busy: boolean;
+  progress: PackingProgress | null;
+  error: string | null;
+  warnings: string[];
+  canCalculate: boolean;
+  /** اجرای محاسبه (نتیجه در App ذخیره می‌شود) */
+  calculate: () => void;
+  cancel: () => void;
+}
 
 interface LayoutPanelProps {
   page: LayoutPage;
@@ -43,9 +60,8 @@ interface LayoutPanelProps {
   /** تنظیمات ورق/تیغه — کنترل‌شده از App تا بخشی از پروژه باشد */
   settings: LayoutSettings;
   onSettingsChange: (settings: LayoutSettings) => void;
-  /** نتیجهٔ چیدمان + اسنپ‌شات قطعاتش — کنترل‌شده از App تا در پروژه ذخیره شود */
-  layoutState: LayoutState | null;
-  onLayoutStateChange: (state: LayoutState | null) => void;
+  /** موتور مشترک محاسبه (نتیجه، وضعیت قدیمی‌بودن، اجرا و لغو) */
+  engine: LayoutEngineView;
 }
 
 /**
@@ -58,8 +74,7 @@ export default function LayoutPanel({
   parts,
   settings,
   onSettingsChange,
-  layoutState,
-  onLayoutStateChange,
+  engine,
 }: LayoutPanelProps) {
   const { stockLength, stockWidth, kerf, allowRotation, bandThickness } = settings;
   const setStockLength = (v: number) => onSettingsChange({ ...settings, stockLength: v });
@@ -70,8 +85,18 @@ export default function LayoutPanel({
   const setSheetColor = (v: string) => onSettingsChange({ ...settings, sheetColor: v });
   const setBandColor = (v: string) => onSettingsChange({ ...settings, bandColor: v });
 
-  const result = layoutState?.result ?? null;
-  const resultParts = layoutState?.partsSnapshot ?? [];
+  const {
+    result,
+    resultParts,
+    isStale,
+    busy,
+    progress,
+    error,
+    warnings,
+    canCalculate,
+    calculate,
+    cancel,
+  } = engine;
   const resultRef = useRef<HTMLDivElement | null>(null);
   const isFirstResultRef = useRef(true);
   /** حالت سند چاپی فعال در دسکتاپ: نقشه (همراه فهرست قطعات) یا لیبل */
@@ -85,63 +110,13 @@ export default function LayoutPanel({
   const pdfBusy = pdfRequest !== null;
   const [showJson, setShowJson] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const validParts = useMemo(() => parts.filter(isValidPart), [parts]);
-
-  /** امضای ورودی‌های فعلی؛ برای تشخیص «نتیجهٔ قدیمی» بعد از ویرایش جدول/تنظیمات */
-  const currentSignature = useMemo(
-    () => computeLayoutSignature(parts, settings),
-    [parts, settings],
+  const validParts = useMemo(
+    () => parts.filter((part) => part.length > 0 && part.width > 0 && part.qty > 0),
+    [parts],
   );
-  const resultSignature = layoutState?.signature ?? null;
 
-  const isStale = result !== null && resultSignature !== currentSignature;
-  const canCalculate = validParts.length > 0 && stockLength > 0 && stockWidth > 0;
-
-  const handleCalculate = () => {
-    if (validParts.length === 0) {
-      setError('هنوز هیچ ردیف کاملی (طول، عرض و تعداد) در جدول وارد نشده است.');
-      return;
-    }
-    if (!(stockLength > 0) || !(stockWidth > 0)) {
-      setError('ابعاد ورق خام باید بزرگ‌تر از صفر باشد.');
-      return;
-    }
-    setError(null);
-
-    // قانون کسر نوار/استریپ در هر سه صفحه یکسان است: ابعاد برش از تابع مشترک می‌آید.
-    const invalidBandParts = validParts.filter((part) => {
-      const cut = calculateCutDimensions(part, bandThickness);
-      return !(cut.length > 0) || !(cut.width > 0);
-    });
-    if (invalidBandParts.length > 0) {
-      setError(
-        'پس از کسر ضخامت نوار/استریپ، ابعاد یک یا چند قطعه صفر یا منفی می‌شود؛ ضخامت نوار یا تعداد لبه‌ها را بررسی کنید.',
-      );
-      return;
-    }
-
-    const layout = calculateLayout(
-      parts,
-      { length: stockLength, width: stockWidth },
-      {
-        kerf,
-        bandThickness,
-        allowRotation,
-        sheetColor: settings.sheetColor,
-        bandColor: settings.bandColor,
-      },
-    );
-
-    onLayoutStateChange({
-      result: layout,
-      // فلگ‌های نقشه از همین اسنپ‌شات خوانده می‌شوند و همراه پروژه ذخیره می‌شود
-      partsSnapshot: parts.map((part) => ({ ...part })),
-      signature: currentSignature,
-    });
-    setCopied(false);
-  };
+  const handleCalculate = calculate;
 
   useEffect(() => {
     // در بارگذاری اولیه (مثلاً بازیابی پیش‌نویس) صفحه اسکرول نشود
@@ -149,7 +124,7 @@ export default function LayoutPanel({
       isFirstResultRef.current = false;
       return;
     }
-    if (result && page === 'drawing') {
+    if (result && page === 'map') {
       resultRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   }, [result, page]);
@@ -196,7 +171,7 @@ export default function LayoutPanel({
         if (cancelled) return;
         await generateAndDeliverPdf(portalEl, kind, filename, title);
       } catch (err) {
-        console.error('[A-Cut 2Dpro] ساخت PDF ناموفق بود:', err);
+        logger.error('ساخت PDF ناموفق بود', err);
         if (!cancelled) {
           setPdfError(
             'ساخت فایل PDF ناموفق بود؛ لطفاً چند ثانیه صبر و دوباره تلاش کنید. اگر مشکل ادامه داشت، از نسخهٔ دسکتاپ چاپ بگیرید.',
@@ -241,11 +216,11 @@ export default function LayoutPanel({
 
   return (
     <>
-      {page === 'dashboard' && (
+      {page === 'parts' && (
         <section className="panel panel-accent p-4 sm:p-6" aria-labelledby="settings-title">
           <div className="flex flex-wrap items-start gap-3">
             <div>
-              <span className="badge mb-2">صفحهٔ ۱ · داشبورد</span>
+              <span className="badge mb-2">قطعات · تنظیمات ورق</span>
               <h2 id="settings-title" className="panel-title">
                 تنظیمات ورق، تیغه و نوار/استریپ
               </h2>
@@ -413,11 +388,44 @@ export default function LayoutPanel({
             </p>
           )}
 
+          {warnings.length > 0 && (
+            <ul className="mt-4 space-y-1 rounded-xl border-2 border-amber-400/70 bg-amber-500/12 px-4 py-3 text-sm font-bold text-amber-800 dark:text-amber-200">
+              {warnings.map((warning) => (
+                <li key={warning}>⚠ {warning}</li>
+              ))}
+            </ul>
+          )}
+
+          {busy && (
+            <div className="mt-4 rounded-xl border-2 border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] px-4 py-3">
+              <p className="text-sm font-black text-[var(--text)]">
+                {progress?.message ?? 'در حال محاسبهٔ چیدمان…'}
+                {progress ? ` — ${faNumber.format(Math.round(progress.ratio * 100))}٪` : ''}
+              </p>
+              <div
+                className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[var(--surface-3)]"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round((progress?.ratio ?? 0) * 100)}
+                aria-label="پیشرفت محاسبه"
+              >
+                <div
+                  className="h-full rounded-full bg-[var(--accent)] transition-[width] duration-200"
+                  style={{ width: `${Math.round((progress?.ratio ?? 0) * 100)}%` }}
+                />
+              </div>
+              <button type="button" onClick={cancel} className="btn btn-secondary mt-2 px-3 py-1 text-xs">
+                لغو محاسبه
+              </button>
+            </div>
+          )}
+
           <div className="mt-5 flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={handleCalculate}
-              disabled={!canCalculate}
+              disabled={!canCalculate || busy}
               className="btn btn-success px-6 py-3 text-lg"
             >
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true">
@@ -432,12 +440,12 @@ export default function LayoutPanel({
         </section>
       )}
 
-      {page === 'drawing' && (
+      {page === 'map' && (
         <section className="space-y-5" aria-labelledby="drawing-title">
           <div className="panel p-4 sm:p-5">
             <div className="flex flex-wrap items-center gap-3">
               <div>
-                <span className="badge mb-2">صفحهٔ ۲ · نقشه</span>
+                <span className="badge mb-2">نقشه · چیدمان</span>
                 <h2 id="drawing-title" className="panel-title">
                   نقشهٔ برش، لیبل‌ها و راهنمای علائم
                 </h2>
@@ -460,10 +468,10 @@ export default function LayoutPanel({
                 <button
                   type="button"
                   onClick={handleCalculate}
-                  disabled={!canCalculate}
+                  disabled={!canCalculate || busy}
                   className="btn btn-success"
                 >
-                  محاسبه / به‌روزرسانی نقشه
+                  {busy ? '⏳ در حال محاسبه…' : 'محاسبه / به‌روزرسانی نقشه'}
                 </button>
               </div>
             </div>
@@ -595,12 +603,12 @@ export default function LayoutPanel({
         </section>
       )}
 
-      {page === 'outputs' && (
+      {page === 'results' && (
         <section className="space-y-5" aria-labelledby="outputs-title">
           <div className="panel p-4 sm:p-5">
             <div className="flex flex-wrap items-center gap-3">
               <div>
-                <span className="badge mb-2">صفحهٔ ۳ · خروجی‌ها</span>
+                <span className="badge mb-2">خروجی‌ها · نتایج</span>
                 <h2 id="outputs-title" className="panel-title">
                   نتایج، چاپ، PDF و DXF
                 </h2>

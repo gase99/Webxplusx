@@ -1,4 +1,4 @@
-import { useId, useMemo, useState, type ReactNode } from 'react';
+import { useId, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type {
   PlacedPart as PlacedPartData,
   SheetLayout,
@@ -549,6 +549,23 @@ interface CuttingMapProps {
   bandColor?: string;
 }
 
+/**
+ * توضیح متنی هر ورق برای صفحه‌خوان (`aria-label`):
+ * ابعاد ورق، تعداد قطعات، بهره‌وری و نام چند قطعهٔ بزرگ.
+ */
+function describeSheet(
+  sheet: SheetLayout,
+  stock: StockSheet,
+  partsById: Map<string, CutPart>,
+): string {
+  const names = sheet.placements
+    .slice(0, 3)
+    .map((placement) => partsById.get(placement.id)?.name?.trim() || 'بدون نام')
+    .join('، ');
+  const more = sheet.placements.length > 3 ? ` و ${faNumber.format(sheet.placements.length - 3)} قطعهٔ دیگر` : '';
+  return `نقشهٔ برش ورق ${faNumber.format(sheet.sheetIndex + 1)} — ابعاد ${stock.length} در ${stock.width} میلی‌متر، ${faNumber.format(sheet.placements.length)} قطعه (${names}${more})، بهره‌وری ${faDecimal.format(sheet.utilizationPercentage)} درصد، پرت ${faDecimal.format(sheet.wastePercentage)} درصد`;
+}
+
 export default function CuttingMap({
   sheets,
   stock,
@@ -559,6 +576,7 @@ export default function CuttingMap({
 }: CuttingMapProps) {
   const [zoom, setZoom] = useState(100);
   const effectiveZoom = forPrint ? 100 : zoom;
+
   const patternId = useId().replace(/[^a-zA-Z0-9]/g, '');
 
   const partsById = useMemo(() => new Map(parts.map((p) => [p.id, p])), [parts]);
@@ -575,8 +593,24 @@ export default function CuttingMap({
 
   if (sheets.length === 0) return null;
 
+  /** زوم با کیبورد: +/− و ۰ برای بازنشانی (بدون نیاز به ماوس) */
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (forPrint) return;
+    if (event.target instanceof HTMLInputElement) return;
+    if (event.key === '+' || event.key === '=') {
+      event.preventDefault();
+      setZoom((z) => Math.min(300, z + 25));
+    } else if (event.key === '-' || event.key === '_') {
+      event.preventDefault();
+      setZoom((z) => Math.max(50, z - 25));
+    } else if (event.key === '0') {
+      event.preventDefault();
+      setZoom(100);
+    }
+  };
+
   return (
-    <div className="cutting-map mt-4">
+    <div className="cutting-map mt-4" onKeyDown={handleKeyDown}>
       {/* سربرگ نقشه: راهنمای علائم + زوم */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <h3 className="text-sm font-extrabold text-slate-800">
@@ -630,7 +664,11 @@ export default function CuttingMap({
         </div>
 
         {!forPrint && (
-          <div className="ms-auto flex items-center gap-1" role="group" aria-label="زوم نقشه">
+          <div
+            className="ms-auto flex items-center gap-1"
+            role="group"
+            aria-label="زوم نقشه — با کلیدهای + و − و ۰ هم تغییر می‌کند"
+          >
             <button
               type="button"
               onClick={() => setZoom((z) => Math.max(50, z - 25))}
@@ -693,9 +731,11 @@ export default function CuttingMap({
               <div className="mx-auto" style={{ width: `${effectiveZoom}%`, minWidth: effectiveZoom > 100 ? undefined : 300 }}>
                 <svg
                   viewBox={`${-pad} ${-pad} ${stock.length + 2 * pad} ${stock.width + 2 * pad}`}
-                  className="block h-auto w-full"
+                  className="block h-auto w-full outline-none focus-visible:ring-4 focus-visible:ring-[var(--focus)]"
                   role="img"
-                  aria-label={`نقشهٔ برش صفحهٔ ${sheet.sheetIndex + 1}`}
+                  tabIndex={forPrint ? undefined : 0}
+                  aria-label={describeSheet(sheet, stock, partsById)}
+                  aria-describedby={`${patternId}-hint`}
                 >
                   <defs>
                     {/* هاشور ضایعات: خطوط مورب نازک مشکی */}
@@ -728,6 +768,60 @@ export default function CuttingMap({
                 </svg>
               </div>
             </div>
+
+            {!forPrint && (
+              <>
+                <p id={`${patternId}-hint`} className="sr-only">
+                  نقشهٔ برش ورق {faNumber.format(sheet.sheetIndex + 1)} از {faNumber.format(sheets.length)}؛
+                  {faNumber.format(sheet.placements.length)} قطعه روی این ورق. جزئیات هر قطعه در جدول
+                  زیر همین نقشه آمده است.
+                </p>
+                {/* جایگزین متنی نقشه برای صفحه‌خوان */}
+                <details className="mx-3 mb-3 rounded-xl border-2 border-[var(--border)] bg-[var(--surface-2)] p-2">
+                  <summary className="cursor-pointer px-1 text-xs font-black text-[var(--text)]">
+                    📋 فهرست متنی قطعات این ورق (برای صفحه‌خوان / کپی)
+                  </summary>
+                  <div className="mt-2 overflow-x-auto">
+                    <table className="w-full min-w-[420px] border-collapse text-[11px]">
+                      <caption className="sr-only">
+                        قطعات چیده‌شده روی ورق {sheet.sheetIndex + 1} با مختصات و ابعاد
+                      </caption>
+                      <thead>
+                        <tr className="bg-[var(--surface-3)] text-[var(--text)]">
+                          <th scope="col" className="p-1 text-start font-black">کد</th>
+                          <th scope="col" className="p-1 text-start font-black">نام</th>
+                          <th scope="col" className="p-1 font-black">X</th>
+                          <th scope="col" className="p-1 font-black">Y</th>
+                          <th scope="col" className="p-1 font-black">عرض</th>
+                          <th scope="col" className="p-1 font-black">ارتفاع</th>
+                          <th scope="col" className="p-1 font-black">چرخش</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sheet.placements.map((placement, index) => (
+                          <tr
+                            key={`list-${placement.id}-${placement.instanceIndex}-${placement.x}-${placement.y}`}
+                            className="border-t border-[var(--border)]"
+                          >
+                            <td className="p-1 font-black tabular-nums" dir="ltr">
+                              S{sheet.sheetIndex + 1}-{String(index + 1).padStart(2, '0')}
+                            </td>
+                            <td className="p-1 font-semibold text-[var(--text)]">
+                              {partsById.get(placement.id)?.name?.trim() || 'بدون نام'}
+                            </td>
+                            <td className="p-1 text-center tabular-nums" dir="ltr">{placement.x}</td>
+                            <td className="p-1 text-center tabular-nums" dir="ltr">{placement.y}</td>
+                            <td className="p-1 text-center tabular-nums" dir="ltr">{placement.width}</td>
+                            <td className="p-1 text-center tabular-nums" dir="ltr">{placement.height}</td>
+                            <td className="p-1 text-center">{placement.isRotated ? '✓' : '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              </>
+            )}
           </figure>
         ))}
       </div>
