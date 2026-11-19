@@ -10,9 +10,11 @@
       اکنون:
         * `AppTheme` روی NoActionBar است (هیچ نوار عنوانی وجود ندارد).
         * `windowNoTitle=true` و `windowActionBar=false` هم صریحاً تنظیم شده‌اند.
-        * رنگ/شفافیت نوار وضعیت و ناوبری مدیریت می‌شود تا محتوا زیر آن‌ها نرود؛
-          خود React هم با `env(safe-area-inset-*)` فاصلهٔ امن را رعایت می‌کند
-          (پل غیرفعال‌بودن fitSystemWindows در MainActivity).
+        * رنگ نوار وضعیت و ناوبری همرنگ برنامه است تا مرز محتوا مشخص باشد؛
+          فاصلهٔ امن (safe-area) از دو مسیر واحد مدیریت می‌شود:
+          `SystemBars.insetsHandling = native` در capacitor.config.ts و
+          `env(safe-area-inset-*)` در CSS. در MainActivity هیچ padding دستی
+          اعمال نمی‌شود (وگرنه فاصله دو بار حساب می‌شد).
     -->
 
     <!-- تم پایهٔ برنامه: بدون ActionBar، بدون عنوان -->
@@ -37,10 +39,12 @@
         <item name="android:background">@null</item>
     </style>
 
-    <!-- تم صفحهٔ شروع (Splash) — بدون نوار عنوان -->
+    <!--
+      تم صفحهٔ شروع (Splash). والد آن `Theme.SplashScreen` از کتابخانهٔ
+      core-splashscreen است و خودش بدون ActionBar است؛ پس فقط پس‌زمینه لازم است.
+      (Capacitor هم در BridgeActivity صریحاً `AppTheme.NoActionBar` را ست می‌کند.)
+    -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
-        <item name="windowActionBar">false</item>
-        <item name="windowNoTitle">true</item>
     </style>
 </resources>

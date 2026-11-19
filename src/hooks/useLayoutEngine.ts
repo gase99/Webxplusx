@@ -63,6 +63,11 @@ export function useLayoutEngine({
   const [progress, setProgress] = useState<PackingProgress | null>(null);
   const runnerRef = useRef<PackingRunner | null>(null);
   const cancelledRef = useRef(false);
+  /**
+   * شناسهٔ اجرای جاری: با هر «لغو» یا شروع محاسبهٔ تازه بالا می‌رود تا نتیجهٔ
+   * اجرای قدیمی (که دیر رسیده) هرگز وضعیت جدید را بازنویسی نکند.
+   */
+  const runIdRef = useRef(0);
 
   // یک نمونهٔ Runner برای کل عمر صفحه (Worker یک‌بار ساخته می‌شود)
   useEffect(() => {
@@ -79,6 +84,7 @@ export function useLayoutEngine({
     async ({ parts, settings, selection, maxSheets, signature }: CalculateArgs): Promise<boolean> => {
       const stock: StockSheet = { length: settings.stockLength, width: settings.stockWidth };
       cancelledRef.current = false;
+      const runId = ++runIdRef.current;
 
       // ۱) اعتبارسنجی ورودی — هیچ عدد نامعتبری به موتور نمی‌رسد
       const report = validateLayoutInput({
@@ -112,6 +118,9 @@ export function useLayoutEngine({
       setBusy(true);
       setProgress(null);
 
+      // اگر کاربر محاسبه را لغو کرد، نتیجهٔ نیمه‌کاره نباید جای نتیجهٔ قبلی را بگیرد
+      let wasCancelled = false;
+
       try {
         const runner = runnerRef.current;
         const input = {
@@ -139,7 +148,11 @@ export function useLayoutEngine({
               return { result, issues: innerReport.issues, usedWorker: false };
             })();
 
-        if (cancelledRef.current) return false;
+        if (cancelledRef.current || runIdRef.current !== runId) {
+          // لغو شده یا اجرای تازه‌تری شروع شده است ⇒ این نتیجه دور ریخته می‌شود
+          wasCancelled = true;
+          return false;
+        }
 
         onLayoutStateChange({
           result: outcome.result,
@@ -154,14 +167,19 @@ export function useLayoutEngine({
         );
         return true;
       } catch (caught) {
+        if (runIdRef.current !== runId) return false;
         logger.error('محاسبهٔ چیدمان ناموفق بود', caught);
         setError(
           'محاسبهٔ چیدمان با خطا متوقف شد. ورودی‌ها را بررسی کنید و دوباره تلاش کنید؛ اگر تکرار شد، صفحه را یک‌بار بازنشانی کنید.',
         );
         return false;
       } finally {
-        setBusy(false);
-        setProgress(null);
+        // وضعیت «در حال محاسبه» فقط اگر همین اجرا جاری باشد پایین می‌آید
+        if (runIdRef.current === runId) {
+          setBusy(false);
+          setProgress(null);
+        }
+        if (wasCancelled) cancelledRef.current = false;
       }
     },
     [onLayoutStateChange],
@@ -169,6 +187,7 @@ export function useLayoutEngine({
 
   const cancel = useCallback(() => {
     cancelledRef.current = true;
+    runIdRef.current += 1; // نتیجهٔ اجرای در جریان باید دور ریخته شود
     runnerRef.current?.cancel();
     setBusy(false);
     setProgress(null);

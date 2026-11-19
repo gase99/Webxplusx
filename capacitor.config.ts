@@ -37,7 +37,22 @@ const config: CapacitorConfig = {
     androidScheme: 'https',
   },
   android: {
-    backgroundColor: '#e2e8f0',
+    backgroundColor: '#edf2fa',
+  },
+  plugins: {
+    /**
+     * ناحیهٔ امن (safe-area) — اندروید ۱۵ به بالا اجباراً edge-to-edge است.
+     * `insetsHandling: 'native'` یعنی Capacitor خودش WebView را با padding
+     * می‌نشاند و مقادیر `env(safe-area-inset-*)` را درست تنظیم می‌کند؛
+     * `initialViewportFitValueHint: 'cover'` از پرش چیدمان اولیه جلوگیری
+     * می‌کند (هم‌خوان با `viewport-fit=cover` در index.html).
+     * React فقط با همین متغیرها فاصلهٔ بالا (نوار وضعیت) و پایین (نوار
+     * ناوبری/گِرد-ناوبری) را رعایت می‌کند — بدون هیچ نوار عنوانی بومی.
+     */
+    SystemBars: {
+      insetsHandling: 'native',
+      initialViewportFitValueHint: 'cover',
+    },
   },
 };
 

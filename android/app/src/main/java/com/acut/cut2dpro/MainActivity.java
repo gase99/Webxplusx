@@ -4,60 +4,51 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.webkit.WebView;
 
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
-
-import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.Bridge;
+import com.getcapacitor.BridgeActivity;
 
 /**
  * A-Cut 2Dpro — اکتیویتی اصلی (پوستهٔ Capacitor/WebView)
  * =====================================================
  * تغییرات UI/UX داشبوردی:
  *
- * ۱) **حذف نوار بالایی بومی**: تم برنامه از `*.NoActionBar` استفاده می‌کند و
- *    اینجا هم صریحاً ActionBar غیرفعال می‌شود تا هیچ هدر/عنوانی بالای صفحه
- *    نماند (منبع «فضای هدر خوردهٔ» بالای اپ در نسخه‌های قبل).
+ * ۱) **حذف نوار بالایی بومی**: تم برنامه از `AppTheme ... NoActionBar` استفاده
+ *    می‌کند (res/values/styles.xml) و اینجا هم اکشن‌بار صریحاً پنهان می‌شود؛
+ *    بنابراین هیچ هدر/عنوانی بالای WebView نمی‌ماند و فضای بالای صفحه هدر
+ *    نمی‌خورد.
  *
- * ۲) **ناحیهٔ امن (safe-area)**: نوار وضعیت اندروید نباید روی محتوای React
- *    بیفتد. دو حالت ممکن است:
- *      - WebView محتوا را زیر نوار وضعیت نمی‌برد (رفتار پیش‌فرض Capacitor)
- *      - یا با edge-to-edge، محتوا زیر آن می‌رود و CSS با
- *        `env(safe-area-inset-top)` خودش فاصله می‌دهد.
- *    ما `fitSystemWindows` را روشن می‌کنیم و این‌ست‌ها را به WebView
- *    پاس می‌دهیم تا در هر دو حالت هیچ هم‌پوشانی‌ای رخ ندهد؛ سپس
- *    `viewport-fit=cover` در index.html باعث می‌شود مقادیر safe-area در
- *    مرورگر/WV معتبر باشند.
+ * ۲) **ناحیهٔ امن (safe-area)**: مسئولیت insets به Capacitor 8 سپرده شده است
+ *    (`SystemBars.insetsHandling = "native"` در `capacitor.config.ts`) و مرورگر
+ *    مقادیر `env(safe-area-inset-*)` را تزریق می‌کند. بنابراین اینجا **نباید**
+ *    دوباره padding بدهیم؛ در غیر این صورت فاصلهٔ امن دو بار اعمال می‌شود
+ *    («فضای خالی» یا شکاف در بالای صفحه). React با
+ *    `.app-shell { padding-top: env(safe-area-inset-top) }` و
+ *    `.bottom-nav { padding-bottom: env(safe-area-inset-bottom) }` کار را تمام
+ *    می‌کند. `viewport-fit=cover` هم در `index.html` تضمین شده است.
  *
- * ۳) **دکمهٔ بازگشت سخت‌افزاری**: Capacitor رویداد `backbutton` را در React
- *    توزیع می‌کند (App.tsx با history به‌عقب می‌رود). رفتار پیش‌فرض Capacitor
- *    همان behavior است؛ پس اینجا فقط از بستن ناگهانی اپ در صفحهٔ داشبورد
- *    اطمینان می‌دهیم (React در اپ منطق را کنترل می‌کند).
+ * ۳) **دکمهٔ بازگشت سخت‌افزاری**: Capacitor رویداد `backbutton` را به صفحه
+ *    می‌فرستد؛ `App.tsx` با `history` به‌عقب می‌رود و فقط در داشبورد اجازهٔ
+ *    بستن اپ می‌دهد (پیش‌فرض Capacitor اگر رویداد preventDefault نشود اپ را
+ *    می‌بندد).
  */
 public class MainActivity extends BridgeActivity {
 
     @Override
-    public void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // ۱) هیچ نوار عنوانی، نه از تم و نه از کد
+        // ۱) هیچ نوار عنوانی: نه از تم (NoActionBar) و نه از کد
         if (getSupportActionBar() != null) {
             getSupportActionBar().hide();
         }
 
-        // ۲) ناحیهٔ امن: محتوا زیر نوار وضعیت / نوار ناوبری پایین نرود
+        // ۳) رنگ پس‌زمینهٔ WebView همرنگ بدنهٔ برنامه (بدون فلش سفید پیش از رندر)
         Bridge bridge = getBridge();
         if (bridge == null || bridge.getWebView() == null) return;
         WebView webView = bridge.getWebView();
-        // WebView خودش رنگ پس‌زمینهٔ برنامه را نشان دهد (بدون فلش سفید در دارک‌مود)
         webView.setBackgroundColor(Color.rgb(0xED, 0xF2, 0xFA));
-        ViewCompat.setOnApplyWindowInsetsListener(webView, (view, insets) -> {
-            androidx.core.graphics.Insets bars =
-                insets.getInsets(WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout());
-            // فاصلهٔ امن را به محتوا می‌دهیم؛ React هم از env(safe-area-inset-*) استفاده می‌کند
-            view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
-            return insets;
-        });
-        ViewCompat.requestApplyInsets(webView);
+
+        // ۲) insets دست‌نخورده می‌ماند: Capacitor (SystemBars) و CSS آن را
+        //    مدیریت می‌کنند؛ هیچ setPadding/setOnApplyWindowInsetsListener اینجا نیست.
     }
 }
