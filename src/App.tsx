@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { App as CapacitorApp } from '@capacitor/app';
+import type { PluginListenerHandle } from '@capacitor/core';
 import BottomNav, { TABS, type AppTab } from './components/BottomNav';
 import ErrorBoundary from './components/ErrorBoundary';
 import UpdateToast from './components/UpdateToast';
@@ -49,9 +51,9 @@ import { fa } from './i18n/fa';
  *    ناوبری پایین (RTL) و حالت فعال.
  *  - **حالت مشترک**: قطعات/تنظیمات/نتیجه/الگوریتم در همین‌جا نگه داشته
  *    می‌شوند، پس جابه‌جایی بین زبانه‌ها چیزی را از دست نمی‌دهد.
- *  - **دکمهٔ بازگشت اندروید**: هر جابه‌جایی زبانه یک ورودی در history
- *    می‌گذارد؛ دکمهٔ Back طبق تاریخچه عقب می‌رود و فقط در صفحهٔ داشبورد
- *    برنامه را می‌بندد (رفتار استاندارد اپ‌های بومی).
+ *  - **دکمهٔ بازگشت اندروید** (افزونهٔ رسمی @capacitor/app): هر جابه‌جایی
+ *    زبانه یک ورودی در history می‌گذارد؛ دکمهٔ Back طبق تاریخچه عقب می‌رود
+ *    و فقط در صفحهٔ داشبورد برنامه را می‌بندد (رفتار استاندارد اپ‌های بومی).
  *  - **Deep link**: آدرس `#/map` (و مشابه آن) در بازکردن/رفرش صفحه کار می‌کند.
  */
 
@@ -186,16 +188,30 @@ export default function App() {
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  // دکمهٔ بازگشت اندروید (Capacitor) — همان مسیر history را طی می‌کند
+  // دکمهٔ بازگشت سخت‌افزاری اندروید — افزونهٔ رسمی @capacitor/app.
+  // (رویداد DOM قدیمی `backbutton` در Capacitor 8 شلیک نمی‌شود؛ هستهٔ Capacitor
+  // هیچ مدیریت پیش‌فرضی برای Back ندارد و بدون این افزونه، Back برنامه را می‌بست.)
+  // رفتار: در زبانه‌های غیر از داشبورد همان مسیر history را طی می‌کند و در
+  // داشبورد برنامه بسته می‌شود (رفتار استاندارد اپ‌های بومی).
   useEffect(() => {
-    const onAndroidBack = (event: Event) => {
-      if (tab === 'dashboard') return; // اجازهٔ بستن اپ در صفحهٔ اصلی
-      event.preventDefault();
+    let handle: PluginListenerHandle | undefined;
+    let cancelled = false;
+    const onAndroidBack = () => {
+      if (tab === 'dashboard') {
+        void CapacitorApp.exitApp(); // اجازهٔ بستن اپ در صفحهٔ اصلی
+        return;
+      }
       if (window.history.length > 1) window.history.back();
       else setTabState('dashboard');
     };
-    document.addEventListener('backbutton', onAndroidBack);
-    return () => document.removeEventListener('backbutton', onAndroidBack);
+    void CapacitorApp.addListener('backButton', onAndroidBack).then((h) => {
+      if (cancelled) void h.remove();
+      else handle = h;
+    });
+    return () => {
+      cancelled = true;
+      void handle?.remove();
+    };
   }, [tab]);
 
   useEffect(() => {

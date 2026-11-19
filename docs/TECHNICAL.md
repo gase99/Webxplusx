@@ -335,8 +335,10 @@ interface Project {
   انتخاب الگوریتم همه در `App.tsx` هستند ⇒ جابه‌جایی زبانه چیزی را از دست نمی‌دهد
   و هیچ صفحه‌ای نسخهٔ دوم منطق محاسبه ندارد.
 - ناوبری: `BottomNav` (ثابت، RTL، `env(safe-area-inset-bottom)`) + `history.pushState`
-  برای هر زبانه. `popstate` و رویداد `backbutton` (Capacitor) به همان مسیر
-  برمی‌گردند؛ در داشبورد Back اپ را می‌بندد.
+  برای هر زبانه. `popstate` و رویداد `backButton` افزونهٔ رسمی `@capacitor/app`
+  به همان مسیر برمی‌گردند؛ در داشبورد Back اپ را می‌بندد. (رویداد DOM قدیمی
+  `backbutton` در Capacitor 8 شلیک نمی‌شود و هستهٔ Capacitor هم مدیریت پیش‌فرضی
+  برای Back ندارد — بدون این افزونه، Back سخت‌افزاری مستقیماً اپ را می‌بست.)
 - محتوا: `.app-content` ارتفاع نوار + ناحیهٔ امن را به‌عنوان `padding-bottom`
   می‌گیرد تا نوار روی محتوا نیفتد. `.app-shell` فقط `padding-top: env(safe-area-inset-top)`
   دارد (بدون فضای هدر).
