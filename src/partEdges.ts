@@ -73,10 +73,8 @@ export function getPartEdgeSides(part: EdgeFlags, isRotated: boolean): PartEdgeS
 }
 
 /**
- * فاصلهٔ خط شیار از لبهٔ قطعه (میلی‌متر) — فقط در خروجی DXF استفاده می‌شود؛
- * روی نقشهٔ برش، شیار به‌صورت نمادین با کانال دو خطی کنار همان لبه رسم می‌شود.
+ * فاصلهٔ خط شیار از لبهٔ قطعه و فاصلهٔ انتهای آن — منبع واحد: `config/constants.ts`
+ * (برای دستگاه شیارزن با تیغهٔ متفاوت فقط همان فایل تغییر می‌کند). این‌جا
+ * دوباره صادر می‌شوند تا واردکننده‌های قبلی بدون تغییر کار کنند.
  */
-export const GROOVE_INSET_MM = 20;
-
-/** فاصلهٔ انتهای خط شیار از گوشه‌های قطعه (میلی‌متر) — صفر: خط تا لبه‌ها کشیده می‌شود */
-export const GROOVE_END_GAP_MM = 0;
+export { GROOVE_INSET_MM, GROOVE_END_GAP_MM } from './config/constants';

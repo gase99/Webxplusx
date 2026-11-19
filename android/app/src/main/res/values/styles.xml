@@ -1,22 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- Base application theme. -->
-    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
-        <!-- Customize your theme here. -->
+    <!--
+      A-Cut 2Dpro — تم‌های اندروید
+      =========================================================
+      نکتهٔ مهم UI: پیش از این، تم پیش‌فرض `Theme.AppCompat.Light.DarkActionBar`
+      بود؛ نتیجه این بود که بالای WebView یک نوار/هدر بومی (ActionBar با نام
+      برنامه) دیده می‌شد و همان نوار، فضای بالای صفحه را هدر می‌داد.
+      اکنون:
+        * `AppTheme` روی NoActionBar است (هیچ نوار عنوانی وجود ندارد).
+        * `windowNoTitle=true` و `windowActionBar=false` هم صریحاً تنظیم شده‌اند.
+        * رنگ/شفافیت نوار وضعیت و ناوبری مدیریت می‌شود تا محتوا زیر آن‌ها نرود؛
+          خود React هم با `env(safe-area-inset-*)` فاصلهٔ امن را رعایت می‌کند
+          (پل غیرفعال‌بودن fitSystemWindows در MainActivity).
+    -->
+
+    <!-- تم پایهٔ برنامه: بدون ActionBar، بدون عنوان -->
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <item name="android:background">@null</item>
+        <!-- پس‌زمینهٔ WebView/پنجره، همرنگ بدنهٔ برنامه (بدون فلش سفید) -->
+        <item name="android:windowBackground">@color/appBackground</item>
+        <item name="android:statusBarColor">@color/colorPrimary</item>
+        <item name="android:navigationBarColor">@color/appBackground</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 
-    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
+    <!-- سازگاری با کد/پیکربندی‌های قدیمی که NoActionBar را مستقیم صدا می‌زنند -->
+    <style name="AppTheme.NoActionBar" parent="AppTheme">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
     </style>
 
-
+    <!-- تم صفحهٔ شروع (Splash) — بدون نوار عنوان -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
         <item name="android:background">@drawable/splash</item>
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
     </style>
 </resources>

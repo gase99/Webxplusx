@@ -59,6 +59,8 @@
 body {
   @apply antialiased;
   min-height: 100vh;
+  /* ناحیهٔ امن (notch/status bar/gesture bar) روی موبایل و WebView اندروید */
+  min-height: 100dvh;
   margin: 0;
   background:
     radial-gradient(1100px 560px at 100% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 72%),
@@ -88,10 +90,196 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* ------------------------------------------------------------------ */
 /*  کلاس‌های معنادار رابط — یک ظاهر، دو تم                             */
 /* ------------------------------------------------------------------ */
-.app-header {
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
-  border-bottom: 2px solid var(--border);
+/* ------------------------------------------------------------------ */
+/*  پوستهٔ داشبوردی و ناوبری پایین                                     */
+/*  (نوار بالایی/هدر برنامه کامل حذف شده است — محتوا از ناحیهٔ امن     */
+/*   بالای صفحه شروع می‌شود و نوار پایین ارتفاع دستگاه را رعایت می‌کند) */
+/* ------------------------------------------------------------------ */
+
+:root {
+  /* ارتفاع نوار ناوبری پایین + ناحیهٔ امن پایین دستگاه */
+  --bottom-nav-height: 62px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+.app-shell {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+  flex-direction: column;
+  /* هیچ فاصلهٔ اضافی بالای محتوا نیست؛ فقط ناحیهٔ امن وضعیت‌بار */
+  padding-top: var(--safe-top);
+  padding-inline: var(--safe-left) var(--safe-right);
+}
+
+.app-content {
+  flex: 1 1 auto;
+  padding-top: 0.75rem;
+  /* محتوا هرگز زیر نوار پایین نرود + ناحیهٔ امن گِرد-ناوبری اندروید */
+  padding-bottom: calc(var(--bottom-nav-height) + var(--safe-bottom) + 1rem);
+}
+
+/* نوار ناوبری پایین — پنج زبانه، RTL، حالت فعال مشخص */
+.bottom-nav {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 40;
+  border-top: 2px solid var(--border);
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
   backdrop-filter: blur(14px);
+  padding-bottom: var(--safe-bottom);
+  box-shadow: 0 -12px 30px -22px rgb(15 23 42 / 0.55);
+}
+
+.bottom-nav-inner {
+  display: flex;
+  align-items: stretch;
+  gap: 0.15rem;
+  margin: 0 auto;
+  max-width: 1500px;
+  padding: 0.3rem 0.35rem;
+  list-style: none;
+}
+
+.bottom-nav-item {
+  display: flex;
+  width: 100%;
+  min-height: 52px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  border: 0;
+  border-radius: 0.9rem;
+  background: transparent;
+  color: var(--subtle);
+  font-weight: 800;
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease, transform 0.12s ease;
+}
+
+.bottom-nav-item:hover,
+.bottom-nav-item:focus-visible {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.bottom-nav-item:active {
+  transform: scale(0.97);
+}
+
+.bottom-nav-item.is-active {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.bottom-nav-item.is-active::after {
+  content: '';
+  position: absolute;
+  /* نوار باریک بالای زبانهٔ فعال */
+  inset-block-start: 0;
+  height: 3px;
+  width: 2.1rem;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.bottom-nav-item {
+  position: relative;
+}
+
+.bottom-nav-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bottom-nav-label {
+  font-size: 0.7rem;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.bottom-nav-badge {
+  position: absolute;
+  inset-inline-end: -0.5rem;
+  inset-block-start: -0.35rem;
+  min-width: 1.05rem;
+  border-radius: 999px;
+  background: var(--accent);
+  padding: 0 0.22rem;
+  color: var(--on-accent);
+  font-size: 0.6rem;
+  font-weight: 900;
+  line-height: 1.15rem;
+  text-align: center;
+}
+
+@media (min-width: 1024px) {
+  /* روی نمایشگر بزرگ نوار پایین لازم نیست (داشبورد همان کارت‌ها را دارد) */
+  .bottom-nav {
+    display: none;
+  }
+  .app-content {
+    padding-bottom: 1.5rem;
+  }
+}
+
+/* اعلان کوتاه (ذخیره/حذف پروژه) — جایگزین هدر قبلی */
+.notice-toast {
+  position: fixed;
+  inset-inline: 0;
+  top: calc(var(--safe-top) + 0.6rem);
+  z-index: 45;
+  margin-inline: auto;
+  width: fit-content;
+  max-width: calc(100% - 2rem);
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, var(--success) 45%, var(--border));
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  padding: 0.4rem 1rem;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 800;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
+}
+
+/* پرش به محتوای اصلی برای صفحه‌خوان/کیبورد */
+.skip-link {
+  position: absolute;
+  inset-inline-start: 0.5rem;
+  top: -100px;
+  z-index: 60;
+  border-radius: 0.6rem;
+  background: var(--accent);
+  padding: 0.5rem 0.9rem;
+  color: var(--on-accent);
+  font-weight: 900;
+  transition: top 0.15s ease;
+}
+
+.skip-link:focus-visible {
+  top: calc(var(--safe-top) + 0.5rem);
+}
+
+@media print {
+  .bottom-nav,
+  .notice-toast,
+  .skip-link {
+    display: none !important;
+  }
+  .app-shell {
+    padding: 0;
+  }
+  .app-content {
+    padding-bottom: 0;
+  }
 }
 
 .panel {

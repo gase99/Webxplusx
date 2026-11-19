@@ -217,6 +217,103 @@ interface ProjectListModalProps {
   onDelete: (project: Project) => void;
 }
 
+/**
+ * فهرست پروژه‌ها به‌صورت «پنل» — بدون مودال/بک‌گراند؛ برای صفحهٔ «بیشتر»
+ * استفاده می‌شود تا با جریان زبانه‌ها هم‌خوان باشد.
+ */
+export function ProjectListPanel({
+  projects,
+  currentProjectId,
+  onOpen,
+  onDelete,
+}: Pick<ProjectListModalProps, 'projects' | 'currentProjectId' | 'onOpen' | 'onDelete'>) {
+  const [query, setQuery] = useState('');
+  const filtered = useMemo(() => {
+    const q = query.trim();
+    return q ? projects.filter((project) => project.name.includes(q)) : projects;
+  }, [projects, query]);
+
+  return (
+    <div className="overflow-hidden rounded-xl border-2 border-[var(--border)]">
+      <div className="border-b-2 border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">
+        <label className="flex items-center gap-2 rounded-lg bg-[var(--surface)] px-2 py-1.5">
+          <SearchIcon className="shrink-0 text-subtle" />
+          <input
+            type="text"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="جستجو در نام پروژه…"
+            aria-label="جستجو در نام پروژه"
+            className="w-full bg-transparent text-sm font-semibold text-[var(--text)] outline-none placeholder:text-subtle"
+          />
+        </label>
+      </div>
+      <div className="max-h-[46vh] overflow-y-auto p-2">
+        {filtered.length === 0 ? (
+          <p className="p-4 text-center text-sm font-bold text-muted">
+            {projects.length === 0 ? 'هنوز پروژه‌ای ذخیره نشده است.' : 'پروژه‌ای با این نام پیدا نشد.'}
+          </p>
+        ) : (
+          <ul className="space-y-1.5">
+            {filtered.map((project) => {
+              const stats = projectStats(project);
+              const isCurrent = project.id === currentProjectId;
+              return (
+                <li
+                  key={project.id}
+                  className={`flex flex-wrap items-center gap-2 rounded-xl px-3 py-2 ring-1 ${
+                    isCurrent
+                      ? 'bg-[color-mix(in_srgb,var(--accent)_12%,var(--surface-2))] ring-[var(--accent)]'
+                      : 'bg-[var(--surface-2)] ring-[var(--border)]'
+                  }`}
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="flex flex-wrap items-center gap-1.5">
+                      <span className="truncate text-sm font-extrabold text-[var(--text)]">{project.name}</span>
+                      {isCurrent && (
+                        <span className="rounded-full bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-black text-white dark:text-slate-950">
+                          فعلی
+                        </span>
+                      )}
+                    </p>
+                    <p className="mt-0.5 flex flex-wrap gap-x-3 text-[11px] font-semibold text-muted">
+                      <span>{faDateTime.format(project.updatedAt)}</span>
+                      <span>
+                        {faNumber.format(stats.rows)} ردیف · {faNumber.format(stats.totalQty)} قطعه
+                      </span>
+                      <span dir="ltr" className="tabular-nums">
+                        {project.settings.stockLength} × {project.settings.stockWidth} mm
+                      </span>
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <button
+                      type="button"
+                      disabled={isCurrent}
+                      onClick={() => onOpen(project)}
+                      className="btn btn-primary px-3 py-1 text-xs"
+                    >
+                      باز کردن
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onDelete(project)}
+                      aria-label={`حذف پروژهٔ ${project.name}`}
+                      className="btn btn-danger px-2 py-1 text-xs"
+                    >
+                      <TrashIcon />
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ProjectListModal({ projects, currentProjectId, onClose, onOpen, onDelete }: ProjectListModalProps) {
   const [query, setQuery] = useState('');
 
