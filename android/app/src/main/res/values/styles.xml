@@ -27,9 +27,14 @@
         <item name="android:background">@null</item>
         <!-- پس‌زمینهٔ WebView/پنجره، همرنگ بدنهٔ برنامه (بدون فلش سفید) -->
         <item name="android:windowBackground">@color/appBackground</item>
+        <!--
+          رنگ نوارهای سیستم و روشن‌بودن آیکون‌ها. (این ویژگی‌ها از API 21 وجود
+          دارند و minSdk برنامه ۲۴ است، پس نیازی به پوشهٔ values-v21 نیست؛
+          در صورت افزودن ویژگی‌های جدیدتر، همان‌جا بازتعریف شوند.)
+        -->
         <item name="android:statusBarColor">@color/colorPrimary</item>
         <item name="android:navigationBarColor">@color/appBackground</item>
-        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightStatusBar">true</item>
     </style>
 
     <!-- سازگاری با کد/پیکربندی‌های قدیمی که NoActionBar را مستقیم صدا می‌زنند -->

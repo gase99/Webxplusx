@@ -180,8 +180,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .bottom-nav-item.is-active::after {
   content: '';
   position: absolute;
-  /* نوار باریک بالای زبانهٔ فعال */
+  /* نوار باریک بالای زبانهٔ فعال (در RTL هم خودکار وسط‌چین می‌ماند) */
   inset-block-start: 0;
+  inset-inline: 0;
+  margin-inline: auto;
   height: 3px;
   width: 2.1rem;
   border-radius: 999px;

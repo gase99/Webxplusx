@@ -11,13 +11,7 @@
  *  - `skyline-min-waste`           : کمترین پرت زیرِ خط (ارتفاع نشستن + باقی‌مانده)،
  *                                    سپس کمترین ارتفاع — چیدمان فشرده‌تر
  */
-import {
-  EPS,
-  round2,
-  sortInstancesByAreaDesc,
-  fitsInStock,
-  type FreeRect,
-} from './shared';
+import { EPS, fitsInStock, round2, sortInstancesByAreaDesc } from './shared';
 import type {
   AlgorithmVariant,
   PackingAlgorithm,
@@ -264,16 +258,6 @@ export function runSkyline(context: PackingContext): PackingOutcome {
     placements: sheets.flatMap((sheet) => sheet.placements),
     unplaced,
   };
-}
-
-/** خط آسمان یک ورق خالی — برای تست‌ها و ابزارهای داخلی */
-export function emptySkyline(stock: { length: number; width: number }): FreeRect[] {
-  return initialSkyline(stock).map((segment) => ({
-    x: segment.x,
-    y: segment.y,
-    width: segment.width,
-    height: stock.width - segment.y,
-  }));
 }
 
 export function resolveSkylineVariant(variant: AlgorithmVariant | undefined): 'bottom-left' | 'min-waste' {
