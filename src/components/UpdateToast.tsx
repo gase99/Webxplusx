@@ -26,6 +26,11 @@ import { logger } from '../lib/logger';
  *  ۴) **نسخهٔ منتظرِ از قبل موجود**: اگر کاربر صفحه را ببندد و بعداً با یک
  *     سرویس‌ورکر «منتظر» برگردد، `needRefresh` ممکن است false باشد؛ در
  *     startup مقدار `registration.waiting` هم بررسی می‌شود.
+ *  ۵) **بازگشت اعلان بعد از خنک‌شدن**: با «بعداً» پرچم `needRefresh` خاموش
+ *     می‌شد و چون سرویس‌ورکر منتظر دیگر رویداد تازه‌ای نمی‌فرستد، اعلان
+ *     هرگز برنمی‌گشت و متن دکمه («یادآوری پس از ۳۰ دقیقه») دروغ می‌شد.
+ *     حالا یک تایمر خنک‌شدن، پس از پایان بازه، وجود سرویس‌ورکر منتظر را
+ *     دوباره بررسی و اعلان را برمی‌گرداند.
  */
 
 /** بازهٔ خنک‌شدن پس از «بعداً» تا اعلان دوباره مزاحم نشود (۳۰ دقیقه) */
@@ -51,6 +56,10 @@ function writeDismissedAt(timestamp: number): void {
 
 export default function UpdateToast() {
   const intervalRef = useRef<number | null>(null);
+  /** تایمر بازگرداندن اعلان پس از پایان بازهٔ خنک‌شدن */
+  const cooldownRef = useRef<number | null>(null);
+  /** آخرین registration برای بررسی «سرویس‌ورکر منتظر» بدون شبکه */
+  const registrationRef = useRef<ServiceWorkerRegistration | null>(null);
   const reloadingRef = useRef(false);
   /** اعلان به‌خاطر «بعداً» موقتاً پنهان است */
   const [dismissedNow, setDismissedNow] = useState(() => {
@@ -64,11 +73,17 @@ export default function UpdateToast() {
   } = useRegisterSW({
     onRegisteredSW(_swUrl, registration) {
       if (!registration) return;
+      registrationRef.current = registration;
       // نسخهٔ منتظرِ از قبل موجود (کاربر صفحه را قبلاً بسته است)
       if (registration.waiting) setNeedRefresh(true);
       // بررسی دوره‌ای؛ فقط یک تایمر فعال، با پاک‌سازی در unmount
       if (intervalRef.current) window.clearInterval(intervalRef.current);
       intervalRef.current = window.setInterval(() => {
+        // وقتی نسخهٔ جدید در انتظار تأیید کاربر است، update() نتیجهٔ تازه‌ای ندارد
+        if (registration.waiting) {
+          setNeedRefresh(true);
+          return;
+        }
         registration.update().catch(() => {
           // آفلاین بودن کاربر هنگام بررسی طبیعی است
         });
@@ -85,7 +100,16 @@ export default function UpdateToast() {
       if (document.visibilityState !== 'visible') return;
       void navigator.serviceWorker
         ?.getRegistration()
-        .then((registration) => registration?.update())
+        .then((registration) => {
+          if (!registration) return;
+          registrationRef.current = registration;
+          // نسخهٔ منتظرِ از قبل: فقط اعلان را برگردان، update() لازم نیست
+          if (registration.waiting) {
+            setNeedRefresh(true);
+            return;
+          }
+          return registration.update();
+        })
         .catch(() => {
           // بدون سرویس‌ورکر یا آفلاین
         });
@@ -111,8 +135,28 @@ export default function UpdateToast() {
         window.clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+      if (cooldownRef.current) {
+        window.clearTimeout(cooldownRef.current);
+        cooldownRef.current = null;
+      }
     };
   }, []);
+
+  // اگر بازهٔ خنک‌شدن در نشست قبل شروع شده باشد، پایانش را در همین نشست برنامه‌ریزی کن
+  useEffect(() => {
+    if (!dismissedNow) return;
+    const remaining = readDismissedAt() + DISMISS_COOLDOWN_MS - Date.now();
+    if (remaining <= 0) {
+      setDismissedNow(false);
+      if (registrationRef.current?.waiting) setNeedRefresh(true);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setDismissedNow(false);
+      if (registrationRef.current?.waiting) setNeedRefresh(true);
+    }, remaining);
+    return () => window.clearTimeout(timer);
+  }, [dismissedNow, setNeedRefresh]);
 
   // اگر کنترلر سرویس‌ورکر عوض شد ولی صفحه reload نشد، یک‌بار خودمان reload می‌کنیم
   useEffect(() => {
@@ -126,11 +170,21 @@ export default function UpdateToast() {
     return () => navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
   }, []);
 
+  /**
+   * «بعداً»: اعلان موقتاً پنهان می‌شود ولی نسخهٔ جدید در کش می‌ماند.
+   * پس از پایان بازهٔ خنک‌شدن، اگر همان سرویس‌ورکر هنوز منتظر تأیید باشد،
+   * اعلان دوباره ظاهر می‌شود (وگرنه باید تا نشست بعد صبر کرد).
+   */
   const dismiss = () => {
     writeDismissedAt(Date.now());
     setDismissedNow(true);
-    // نسخهٔ جدید کش‌شده می‌ماند؛ در نشست بعدی/PWA بعدی خودکار فعال می‌شود
     setNeedRefresh(false);
+    if (cooldownRef.current) window.clearTimeout(cooldownRef.current);
+    cooldownRef.current = window.setTimeout(() => {
+      cooldownRef.current = null;
+      setDismissedNow(false);
+      if (registrationRef.current?.waiting) setNeedRefresh(true);
+    }, DISMISS_COOLDOWN_MS);
   };
 
   if (!needRefresh || dismissedNow) return null;
